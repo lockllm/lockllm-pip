@@ -79,7 +79,7 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 | **Dual API** | Both synchronous and asynchronous support for maximum flexibility |
 | **Streaming Compatible** | Works seamlessly with streaming responses from any provider |
 | **Configurable Sensitivity** | Adjust detection thresholds (low/medium/high) per use case |
-| **Custom Endpoints** | Support for self-hosted models, Azure resources, and private clouds |
+| **Custom Endpoints** | Configure custom URLs for any provider (self-hosted, Azure, private clouds) |
 | **Enterprise Privacy** | Provider keys encrypted at rest, prompts never stored |
 | **Production Ready** | Battle-tested with automatic retries, timeouts, and error handling |
 
@@ -87,17 +87,40 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 
 **Requirements:** Python 3.8 or higher
 
+Choose your preferred package manager:
+
 ```bash
-# Install the SDK
+# pip
 pip install lockllm
 
-# For wrapper functions, install provider SDKs separately
-pip install openai              # For OpenAI, Groq, DeepSeek, Mistral, etc.
-pip install anthropic           # For Anthropic Claude
-pip install cohere             # For Cohere (optional)
+# poetry
+poetry add lockllm
+
+# pipenv
+pipenv install lockllm
 ```
 
-**Note:** Provider SDKs (openai, anthropic, cohere) are **NOT** required for basic usage. They're only needed if you use the wrapper functions. This allows you to use any version of these SDKs without conflicts.
+### Optional Dependencies
+
+For wrapper functions, install the relevant provider SDKs:
+
+```bash
+# pip
+pip install openai anthropic cohere
+
+# poetry
+poetry add openai anthropic cohere
+
+# pipenv
+pipenv install openai anthropic cohere
+```
+
+**Provider breakdown:**
+- `openai` - For OpenAI, Groq, DeepSeek, Mistral, etc.
+- `anthropic` - For Anthropic Claude
+- `cohere` - For Cohere (optional)
+
+**Note:** Provider SDKs are **NOT** required for basic usage. They're only needed if you use the wrapper functions. This allows you to use any version of these SDKs without conflicts.
 
 ## Quick Start
 
@@ -452,7 +475,7 @@ Compare detection accuracy and performance metrics at [lockllm.com/benchmarks](h
 
 ## Supported Providers
 
-LockLLM supports 17 AI providers with three flexible integration methods:
+LockLLM supports 17+ AI providers with three flexible integration methods:
 
 ### Provider List
 
@@ -481,13 +504,16 @@ All providers support both synchronous and asynchronous APIs with the `create_as
 ### Custom Endpoints
 
 All providers support custom endpoint URLs for:
-- Self-hosted LLM deployments
-- Alternative API gateways
+- Self-hosted LLM deployments (OpenAI-compatible APIs)
+- Alternative API gateways and reverse proxies
 - Custom Azure OpenAI resources
-- Private cloud deployments
+- Private cloud or air-gapped deployments
 - Development and staging environments
 
-Configure custom endpoints in the [LockLLM dashboard](https://www.lockllm.com/dashboard) when adding provider API keys.
+**How it works:**
+Configure custom endpoints in the [LockLLM dashboard](https://www.lockllm.com/dashboard) when adding any provider API key. The SDK wrappers automatically use your custom endpoint instead of the default.
+
+**Example:** Use the OpenAI wrapper with your self-hosted Llama model by configuring a custom endpoint URL.
 
 ## How It Works
 
