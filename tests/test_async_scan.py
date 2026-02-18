@@ -7,6 +7,7 @@ import pytest
 from lockllm.async_scan import AsyncScanClient
 from lockllm.errors import PromptInjectionError
 from lockllm.types import ScanRequest
+from lockllm.types.scan import ScanOptions
 
 
 class TestAsyncScanClient:
@@ -96,3 +97,88 @@ class TestAsyncScanClient:
         assert result.debug.duration_ms == 50
         assert result.debug.inference_ms == 30
         assert result.debug.mode == "single"
+
+    @pytest.mark.asyncio
+    async def test_scan_with_scan_options(self, mock_scan_response):
+        """Test async scan with ScanOptions object."""
+        mock_http_client = AsyncMock()
+        mock_http_client.post = AsyncMock(return_value=(mock_scan_response, "req_123"))
+
+        client = AsyncScanClient(http=mock_http_client)
+
+        opts = ScanOptions(
+            scan_mode="combined",
+            scan_action="block",
+            policy_action="allow_with_warning",
+            abuse_action="block",
+            chunk=True,
+        )
+        result = await client.scan(input="test", scan_options=opts)
+
+        call_args = mock_http_client.post.call_args
+        headers = call_args[1]["headers"]
+        assert headers["X-LockLLM-Scan-Mode"] == "combined"
+        assert headers["X-LockLLM-Scan-Action"] == "block"
+        assert headers["X-LockLLM-Policy-Action"] == "allow_with_warning"
+        assert headers["X-LockLLM-Abuse-Action"] == "block"
+        assert headers["X-LockLLM-Chunk"] == "true"
+
+    @pytest.mark.asyncio
+    async def test_scan_kwargs_override_scan_options(self, mock_scan_response):
+        """Test that individual kwargs take precedence over ScanOptions in async."""
+        mock_http_client = AsyncMock()
+        mock_http_client.post = AsyncMock(return_value=(mock_scan_response, "req_123"))
+
+        client = AsyncScanClient(http=mock_http_client)
+
+        opts = ScanOptions(
+            scan_mode="normal",
+            scan_action="allow_with_warning",
+            policy_action="allow_with_warning",
+            abuse_action="allow_with_warning",
+            chunk=False,
+        )
+        result = await client.scan(
+            input="test",
+            scan_options=opts,
+            scan_mode="combined",
+            scan_action="block",
+            policy_action="block",
+            abuse_action="block",
+            chunk=True,
+        )
+
+        call_args = mock_http_client.post.call_args
+        headers = call_args[1]["headers"]
+        assert headers["X-LockLLM-Scan-Mode"] == "combined"
+        assert headers["X-LockLLM-Scan-Action"] == "block"
+        assert headers["X-LockLLM-Policy-Action"] == "block"
+        assert headers["X-LockLLM-Abuse-Action"] == "block"
+        assert headers["X-LockLLM-Chunk"] == "true"
+
+    @pytest.mark.asyncio
+    async def test_scan_with_all_header_options(self, mock_scan_response):
+        """Test async scan with all header-producing options."""
+        mock_http_client = AsyncMock()
+        mock_http_client.post = AsyncMock(return_value=(mock_scan_response, "req_123"))
+
+        client = AsyncScanClient(http=mock_http_client)
+
+        result = await client.scan(
+            input="test",
+            scan_mode="policy_only",
+            scan_action="block",
+            policy_action="allow_with_warning",
+            abuse_action="block",
+            chunk=False,
+            sensitivity="low",
+        )
+
+        call_args = mock_http_client.post.call_args
+        headers = call_args[1]["headers"]
+        assert headers["X-LockLLM-Scan-Mode"] == "policy_only"
+        assert headers["X-LockLLM-Scan-Action"] == "block"
+        assert headers["X-LockLLM-Policy-Action"] == "allow_with_warning"
+        assert headers["X-LockLLM-Abuse-Action"] == "block"
+        assert headers["X-LockLLM-Chunk"] == "false"
+        assert headers["X-LockLLM-Sensitivity"] == "low"

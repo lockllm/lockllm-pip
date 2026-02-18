@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import requests
 
+from ._version import __version__
 from .errors import LockLLMError, NetworkError, RateLimitError, parse_error
 from .utils import calculate_backoff, generate_request_id, parse_retry_after
 
@@ -124,8 +125,8 @@ class HttpClient:
                 if response.ok:
                     return response.json(), response_request_id
 
-                # Rate limiting with retry
-                if response.status_code == 429:
+                # Retryable status codes (rate limit + server errors)
+                if response.status_code in (429, 500, 502, 503):
                     if attempt < self.max_retries:
                         retry_after_header = response.headers.get("Retry-After")
                         retry_after = parse_retry_after(retry_after_header)
@@ -133,21 +134,22 @@ class HttpClient:
                         time.sleep(delay / 1000.0)
                         continue
 
-                    # Max retries exhausted for rate limit
-                    try:
-                        error_data = response.json()
-                    except Exception:
-                        error_data = {}
+                    # Max retries exhausted
+                    if response.status_code == 429:
+                        try:
+                            error_data = response.json()
+                        except Exception:
+                            error_data = {}
 
-                    raise RateLimitError(
-                        message=error_data.get("error", {}).get(
-                            "message", "Rate limit exceeded"
-                        ),
-                        retry_after=parse_retry_after(
-                            response.headers.get("Retry-After")
-                        ),
-                        request_id=response_request_id,
-                    )
+                        raise RateLimitError(
+                            message=error_data.get("error", {}).get(
+                                "message", "Rate limit exceeded"
+                            ),
+                            retry_after=parse_retry_after(
+                                response.headers.get("Retry-After")
+                            ),
+                            request_id=response_request_id,
+                        )
 
                 # Other HTTP errors
                 try:
@@ -213,7 +215,7 @@ class HttpClient:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}",
             "X-Request-Id": request_id,
-            "User-Agent": "lockllm-pip/1.0.0",
+            "User-Agent": f"lockllm-pip/{__version__}",
         }
 
         if custom_headers:

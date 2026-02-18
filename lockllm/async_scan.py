@@ -3,7 +3,15 @@
 from typing import Any, Optional
 
 from .async_http_client import AsyncHttpClient
-from .types.scan import Debug, ScanRequest, ScanResponse, Sensitivity, Usage
+from .scan import _build_scan_headers, _parse_scan_response
+from .types.scan import (
+    ScanAction,
+    ScanMode,
+    ScanOptions,
+    ScanRequest,
+    ScanResponse,
+    Sensitivity,
+)
 
 
 class AsyncScanClient:
@@ -17,6 +25,8 @@ class AsyncScanClient:
     - Tool/function abuse
     - RAG injection
     - Obfuscation techniques
+    - Custom policy violations
+    - Abuse detection
     """
 
     def __init__(self, http: AsyncHttpClient) -> None:
@@ -28,7 +38,16 @@ class AsyncScanClient:
         self._http = http
 
     async def scan(
-        self, input: str, sensitivity: Sensitivity = "medium", **options: Any
+        self,
+        input: str,
+        sensitivity: Sensitivity = "medium",
+        scan_mode: Optional[ScanMode] = None,
+        scan_action: Optional[ScanAction] = None,
+        policy_action: Optional[ScanAction] = None,
+        abuse_action: Optional[ScanAction] = None,
+        chunk: Optional[bool] = None,
+        scan_options: Optional[ScanOptions] = None,
+        **options: Any,
     ) -> ScanResponse:
         """Scan a prompt for security threats (async).
 
@@ -43,6 +62,26 @@ class AsyncScanClient:
                 - "medium": Balanced detection (recommended)
                 - "high": Maximum protection, may have more false
                     positives
+            scan_mode: Which security checks to perform
+                - "normal": Core injection detection only
+                - "policy_only": Custom policies only
+                - "combined": Both core + policies (default)
+            scan_action: Core injection detection behavior
+                - "block": Block the request
+                - "allow_with_warning": Allow with warning (default)
+            policy_action: Policy violation behavior
+                - "block": Block the request
+                - "allow_with_warning": Allow with warning (default)
+            abuse_action: Abuse detection behavior (opt-in)
+                - None: Disabled (default)
+                - "block": Block the request
+                - "allow_with_warning": Allow with warning
+            chunk: Whether to enable chunking for long prompts
+                - None: Use server default
+                - True: Enable chunking
+                - False: Disable chunking
+            scan_options: Pre-configured ScanOptions object. Individual
+                keyword arguments take precedence over ScanOptions values.
             **options: Additional request options (headers, timeout)
 
         Returns:
@@ -53,64 +92,65 @@ class AsyncScanClient:
             AuthenticationError: If API key is invalid
             NetworkError: If network request fails
             RateLimitError: If rate limit is exceeded
+            PromptInjectionError: If scan_action is "block" and injection detected
+            PolicyViolationError: If policy_action is "block" and violation found
+            AbuseDetectedError: If abuse_action is "block" and abuse detected
+            InsufficientCreditsError: If credit balance is too low
 
         Example:
             >>> client = AsyncScanClient(http)
             >>> result = await client.scan(
             ...     input="Ignore previous instructions",
-            ...     sensitivity="medium"
+            ...     sensitivity="medium",
+            ...     scan_mode="combined",
+            ...     scan_action="block"
             ... )
             >>> if not result.safe:
             ...     print(f"Malicious! Injection score: {result.injection}%")
+
+            Using ScanOptions:
+            >>> opts = ScanOptions(scan_mode="combined", scan_action="block")
+            >>> result = await client.scan(input="test", scan_options=opts)
         """
+        # Resolve options: individual kwargs take precedence over ScanOptions
+        if scan_options is not None:
+            if scan_mode is None:
+                scan_mode = scan_options.scan_mode
+            if scan_action is None:
+                scan_action = scan_options.scan_action
+            if policy_action is None:
+                policy_action = scan_options.policy_action
+            if abuse_action is None:
+                abuse_action = scan_options.abuse_action
+            if chunk is None:
+                chunk = scan_options.chunk
+
         request = ScanRequest(input=input, sensitivity=sensitivity)
         body = {"input": request.input, "sensitivity": request.sensitivity}
 
-        # Extract request options
-        headers = options.get("headers")
+        # Build headers from scan configuration
+        scan_headers = _build_scan_headers(
+            scan_mode=scan_mode,
+            scan_action=scan_action,
+            policy_action=policy_action,
+            abuse_action=abuse_action,
+            sensitivity=sensitivity,
+            chunk=chunk,
+        )
+
+        # Merge with user-provided headers
+        user_headers = options.get("headers")
+        if user_headers:
+            scan_headers.update(user_headers)
+
         timeout = options.get("timeout")
 
         data, request_id = await self._http.post(
-            "/v1/scan", body=body, headers=headers, timeout=timeout
+            "/v1/scan",
+            body=body,
+            headers=scan_headers if scan_headers else None,
+            timeout=timeout,
         )
 
-        # Parse response
-        return self._parse_response(data, request_id)
-
-    def _parse_response(self, data: dict, request_id: str) -> ScanResponse:
-        """Parse API response into ScanResponse.
-
-        Args:
-            data: Response data from API
-            request_id: Request ID
-
-        Returns:
-            Parsed ScanResponse object
-        """
-        # Parse usage
-        usage_data = data.get("usage", {})
-        usage = Usage(
-            requests=usage_data.get("requests", 0),
-            input_chars=usage_data.get("input_chars", 0),
-        )
-
-        # Parse debug (optional, Pro plan only)
-        debug: Optional[Debug] = None
-        if "debug" in data:
-            debug_data = data["debug"]
-            debug = Debug(
-                duration_ms=debug_data.get("duration_ms", 0),
-                inference_ms=debug_data.get("inference_ms", 0),
-                mode=debug_data.get("mode", "single"),
-            )
-
-        return ScanResponse(
-            safe=data["safe"],
-            label=data["label"],
-            confidence=data["confidence"],
-            injection=data["injection"],
-            sensitivity=data["sensitivity"],
-            request_id=data.get("request_id", request_id),
-            usage=usage,
-            debug=debug,
-        )
+        # Parse response (reuse sync parser - no async needed)
+        return _parse_scan_response(data, request_id)

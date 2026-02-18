@@ -69,7 +69,14 @@ class TestLockLLM:
 
         assert result == scan_response
         mock_scan.assert_called_once_with(
-            input="test prompt", sensitivity="high"
+            input="test prompt",
+            sensitivity="high",
+            scan_mode=None,
+            scan_action=None,
+            policy_action=None,
+            abuse_action=None,
+            chunk=None,
+            scan_options=None,
         )
 
     def test_config_property(self, api_key):
@@ -130,6 +137,12 @@ class TestLockLLM:
         mock_scan.assert_called_once_with(
             input="test",
             sensitivity="low",
+            scan_mode=None,
+            scan_action=None,
+            policy_action=None,
+            abuse_action=None,
+            chunk=None,
+            scan_options=None,
             headers={"X-Custom": "value"},
             timeout=15.0,
         )

@@ -43,3 +43,24 @@ PROVIDER_BASE_URLS = {
     "bedrock": "https://api.lockllm.com/v1/proxy/bedrock",
     "vertex-ai": "https://api.lockllm.com/v1/proxy/vertex-ai",
 }
+
+# Universal proxy URL for non-BYOK users (uses LockLLM credits)
+UNIVERSAL_PROXY_URL = "https://api.lockllm.com/v1/proxy"
+
+# Supported task types for intelligent routing
+TaskType = Literal[
+    "Open QA",
+    "Closed QA",
+    "Summarization",
+    "Text Generation",
+    "Code Generation",
+    "Chatbot",
+    "Classification",
+    "Rewrite",
+    "Brainstorming",
+    "Extraction",
+    "Other",
+]
+
+# Complexity tiers for routing
+ComplexityTier = Literal["low", "medium", "high"]

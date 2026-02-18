@@ -3,10 +3,13 @@
 import pytest
 
 from lockllm.errors import (
+    AbuseDetectedError,
     AuthenticationError,
     ConfigurationError,
+    InsufficientCreditsError,
     LockLLMError,
     NetworkError,
+    PolicyViolationError,
     PromptInjectionError,
     RateLimitError,
     UpstreamError,
@@ -115,6 +118,100 @@ class TestPromptInjectionError:
         assert error.status == 400
         assert error.scan_result == scan_result
         assert error.scan_result.injection == 90.5
+
+
+class TestPolicyViolationError:
+    """Tests for PolicyViolationError."""
+
+    def test_policy_violation_error_basic(self):
+        """Test basic policy violation error creation."""
+        error = PolicyViolationError(
+            "Policy violated", request_id="req_123"
+        )
+
+        assert error.message == "Policy violated"
+        assert error.type == "lockllm_policy_error"
+        assert error.code == "policy_violation"
+        assert error.status == 403
+        assert error.violated_policies == []
+        assert error.request_id == "req_123"
+
+    def test_policy_violation_error_with_policies(self):
+        """Test policy violation error with violated policies list."""
+        policies = [
+            {"policy_name": "No violence", "violated_categories": [{"name": "Violence"}]},
+            {"policy_name": "No hate", "violated_categories": [{"name": "Hate speech"}]},
+        ]
+        error = PolicyViolationError(
+            "Policy violated",
+            violated_policies=policies,
+            request_id="req_456",
+        )
+
+        assert len(error.violated_policies) == 2
+        assert error.violated_policies[0]["policy_name"] == "No violence"
+
+
+class TestAbuseDetectedError:
+    """Tests for AbuseDetectedError."""
+
+    def test_abuse_detected_error_basic(self):
+        """Test basic abuse detected error creation."""
+        error = AbuseDetectedError(
+            "Abuse detected", request_id="req_123"
+        )
+
+        assert error.message == "Abuse detected"
+        assert error.type == "lockllm_abuse_error"
+        assert error.code == "abuse_detected"
+        assert error.status == 400
+        assert error.abuse_details == {}
+        assert error.request_id == "req_123"
+
+    def test_abuse_detected_error_with_details(self):
+        """Test abuse detected error with details."""
+        details = {
+            "confidence": 95,
+            "abuse_types": ["bot_generated", "rapid_requests"],
+        }
+        error = AbuseDetectedError(
+            "Abuse detected",
+            abuse_details=details,
+            request_id="req_456",
+        )
+
+        assert error.abuse_details == details
+        assert error.abuse_details["confidence"] == 95
+
+
+class TestInsufficientCreditsError:
+    """Tests for InsufficientCreditsError."""
+
+    def test_insufficient_credits_error_basic(self):
+        """Test basic insufficient credits error creation."""
+        error = InsufficientCreditsError(
+            "Not enough credits", request_id="req_123"
+        )
+
+        assert error.message == "Not enough credits"
+        assert error.type == "lockllm_balance_error"
+        assert error.code == "insufficient_credits"
+        assert error.status == 402
+        assert error.current_balance is None
+        assert error.estimated_cost is None
+        assert error.request_id == "req_123"
+
+    def test_insufficient_credits_error_with_amounts(self):
+        """Test insufficient credits error with balance details."""
+        error = InsufficientCreditsError(
+            "Not enough credits",
+            current_balance=0.50,
+            estimated_cost=1.00,
+            request_id="req_456",
+        )
+
+        assert error.current_balance == 0.50
+        assert error.estimated_cost == 1.00
 
 
 class TestUpstreamError:
@@ -243,6 +340,160 @@ class TestParseError:
         assert error.scan_result.injection == 90.5
         assert error.request_id == "req_789"
 
+    def test_parse_policy_violation_error(self):
+        """Test parsing policy violation error."""
+        response = {
+            "error": {
+                "message": "Content violates policy",
+                "type": "lockllm_policy_error",
+                "code": "policy_violation",
+                "request_id": "req_policy",
+                "violated_policies": [
+                    {"policy_name": "No violence", "violated_categories": []},
+                ],
+            }
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, PolicyViolationError)
+        assert error.message == "Content violates policy"
+        assert error.request_id == "req_policy"
+        assert len(error.violated_policies) == 1
+
+    def test_parse_abuse_detected_error(self):
+        """Test parsing abuse detected error."""
+        response = {
+            "error": {
+                "message": "Abuse detected in request",
+                "type": "lockllm_abuse_error",
+                "code": "abuse_detected",
+                "request_id": "req_abuse",
+                "abuse_details": {
+                    "confidence": 95,
+                    "abuse_types": ["bot_generated"],
+                },
+            }
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, AbuseDetectedError)
+        assert error.message == "Abuse detected in request"
+        assert error.request_id == "req_abuse"
+        assert error.abuse_details["confidence"] == 95
+
+    def test_parse_insufficient_credits_error(self):
+        """Test parsing insufficient credits error."""
+        response = {
+            "error": {
+                "message": "Insufficient credits",
+                "type": "lockllm_balance_error",
+                "code": "insufficient_credits",
+                "request_id": "req_credits",
+                "current_balance": 0.5,
+                "estimated_cost": 1.0,
+            }
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, InsufficientCreditsError)
+        assert error.message == "Insufficient credits"
+        assert error.request_id == "req_credits"
+        assert error.current_balance == 0.5
+        assert error.estimated_cost == 1.0
+
+    def test_parse_insufficient_credits_by_code_no_balance(self):
+        """Test parsing insufficient credits by no_balance code."""
+        response = {
+            "error": {
+                "message": "No balance available",
+                "type": "some_type",
+                "code": "no_balance",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, InsufficientCreditsError)
+
+    def test_parse_insufficient_credits_by_code_routing(self):
+        """Test parsing insufficient routing credits error."""
+        response = {
+            "error": {
+                "message": "Not enough for routing",
+                "type": "some_type",
+                "code": "insufficient_routing_credits",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, InsufficientCreditsError)
+
+    def test_parse_insufficient_credits_by_code_balance_check(self):
+        """Test parsing balance check failed error."""
+        response = {
+            "error": {
+                "message": "Balance check failed",
+                "type": "some_type",
+                "code": "balance_check_failed",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, InsufficientCreditsError)
+
+    def test_parse_insufficient_credits_by_type(self):
+        """Test parsing insufficient credits by error type."""
+        response = {
+            "error": {
+                "message": "Balance too low",
+                "type": "lockllm_balance_error",
+                "code": "some_code",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, InsufficientCreditsError)
+
+    def test_parse_configuration_error_no_byok_key(self):
+        """Test parsing configuration error with no_byok_key code."""
+        response = {
+            "error": {
+                "message": "No BYOK key configured",
+                "type": "some_type",
+                "code": "no_byok_key",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, ConfigurationError)
+
+    def test_parse_configuration_error_invalid_provider(self):
+        """Test parsing configuration error with invalid_provider_for_credits_mode code."""
+        response = {
+            "error": {
+                "message": "Invalid provider for credits mode",
+                "type": "some_type",
+                "code": "invalid_provider_for_credits_mode",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, ConfigurationError)
+
+    def test_parse_configuration_error_by_type(self):
+        """Test parsing configuration error by lockllm_config_error type."""
+        response = {
+            "error": {
+                "message": "Config issue",
+                "type": "lockllm_config_error",
+            }
+        }
+
+        error = parse_error(response)
+        assert isinstance(error, ConfigurationError)
+
     def test_parse_upstream_error(self):
         """Test parsing upstream error."""
         response = {
@@ -306,3 +557,38 @@ class TestParseError:
         response = {"error": {"message": "Provider down", "code": "provider_error"}}
         error = parse_error(response)
         assert isinstance(error, UpstreamError)
+
+    def test_parse_prompt_injection_with_extra_scan_fields(self):
+        """Test that unknown fields in scan_result are filtered out."""
+        response = {
+            "error": {
+                "message": "Injection found",
+                "type": "lockllm_security_error",
+                "code": "prompt_injection_detected",
+                "scan_result": {
+                    "safe": False,
+                    "label": 1,
+                    "confidence": 90.0,
+                    "injection": 85.0,
+                    "sensitivity": "medium",
+                    "unknown_new_field": "should_be_filtered",
+                },
+            }
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, PromptInjectionError)
+        assert error.scan_result.safe is False
+        assert error.scan_result.confidence == 90.0
+
+    def test_parse_error_default_message(self):
+        """Test parsing error with missing message."""
+        response = {
+            "error": {
+                "type": "unknown_type",
+            }
+        }
+
+        error = parse_error(response)
+        assert error.message == "An error occurred"
