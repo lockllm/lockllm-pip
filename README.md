@@ -28,7 +28,7 @@ LockLLM is a state-of-the-art AI security ecosystem that detects prompt injectio
 - **17+ Provider Support** - Universal coverage across OpenAI, Anthropic, Azure, Bedrock, Gemini, and more
 - **Drop-in Integration** - Replace existing SDKs with zero code changes - just change one line
 - **Dual API** - Both synchronous and asynchronous support for maximum flexibility
-- **Completely Free** - BYOK (Bring Your Own Key) model with unlimited usage and no rate limits
+- **Completely Free** - BYOK (Bring Your Own Key) model with free unlimited scanning
 - **Privacy by Default** - Your data is never stored, only scanned in-memory and discarded
 
 ## Why LockLLM
@@ -80,12 +80,18 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 | **Streaming Compatible** | Works seamlessly with streaming responses from any provider |
 | **Configurable Sensitivity** | Adjust detection thresholds (low/medium/high) per use case |
 | **Custom Endpoints** | Configure custom URLs for any provider (self-hosted, Azure, private clouds) |
+| **Custom Content Policies** | Define your own content rules in the dashboard and enforce them automatically across all providers |
+| **AI Abuse Detection** | Detect bot-generated content, repetition attacks, and resource exhaustion from your end-users |
+| **Intelligent Routing** | Automatically select the optimal model for each request based on task type and complexity to save costs |
+| **Response Caching** | Cache identical LLM responses to reduce costs and latency on repeated queries |
 | **Enterprise Privacy** | Provider keys encrypted at rest, prompts never stored |
 | **Production Ready** | Battle-tested with automatic retries, timeouts, and error handling |
 
 ## Installation
 
 **Requirements:** Python 3.8 or higher
+
+The SDK uses `requests` for synchronous HTTP and `httpx` for asynchronous HTTP - both are installed automatically.
 
 Choose your preferred package manager:
 
@@ -106,19 +112,18 @@ For wrapper functions, install the relevant provider SDKs:
 
 ```bash
 # pip
-pip install openai anthropic cohere
+pip install openai anthropic
 
 # poetry
-poetry add openai anthropic cohere
+poetry add openai anthropic
 
 # pipenv
-pipenv install openai anthropic cohere
+pipenv install openai anthropic
 ```
 
 **Provider breakdown:**
-- `openai` - For OpenAI, Groq, DeepSeek, Mistral, etc.
-- `anthropic` - For Anthropic Claude
-- `cohere` - For Cohere (optional)
+- `openai` - For OpenAI and all OpenAI-compatible providers (Groq, DeepSeek, Mistral, Cohere, Gemini, Together, xAI, Fireworks, Anyscale, Hugging Face, Azure, Bedrock, Vertex AI)
+- `anthropic` - For Anthropic Claude only
 
 **Note:** Provider SDKs are **NOT** required for basic usage. They're only needed if you use the wrapper functions. This allows you to use any version of these SDKs without conflicts.
 
@@ -391,6 +396,9 @@ high_result = lockllm.scan(input=user_prompt, sensitivity="high")
 from lockllm import (
     LockLLMError,
     PromptInjectionError,
+    PolicyViolationError,
+    AbuseDetectedError,
+    InsufficientCreditsError,
     AuthenticationError,
     RateLimitError,
     UpstreamError,
@@ -410,12 +418,18 @@ except PromptInjectionError as error:
     print(f"Injection confidence: {error.scan_result.injection}%")
     print(f"Request ID: {error.request_id}")
 
-    # Log to security monitoring system
-    log_security_incident({
-        'type': 'prompt_injection',
-        'confidence': error.scan_result.injection,
-        'request_id': error.request_id,
-    })
+except PolicyViolationError as error:
+    # Custom policy violation detected
+    print(f"Policy violation: {error.violated_policies}")
+
+except AbuseDetectedError as error:
+    # AI abuse detected (bot content, repetition, etc.)
+    print(f"Abuse detected: {error.abuse_details}")
+
+except InsufficientCreditsError as error:
+    # Not enough credits
+    print(f"Balance: {error.current_balance}")
+    print(f"Cost: {error.estimated_cost}")
 
 except AuthenticationError:
     print("Invalid LockLLM API key")
@@ -623,27 +637,53 @@ Scan a prompt for security threats before sending to an LLM.
 lockllm.scan(
     input: str,
     sensitivity: Literal["low", "medium", "high"] = "medium",
+    scan_mode: Optional[ScanMode] = None,
+    scan_action: Optional[ScanAction] = None,
+    policy_action: Optional[ScanAction] = None,
+    abuse_action: Optional[ScanAction] = None,
+    chunk: Optional[bool] = None,
+    scan_options: Optional[ScanOptions] = None,
     **options
 ) -> ScanResponse
 ```
 
 **Parameters:**
 - `input` (required): Text to scan
-- `sensitivity` (optional): Detection level (default: "medium")
+- `sensitivity` (optional): Detection level - `"low"`, `"medium"` (default), or `"high"`
+- `scan_mode` (optional): Which checks to run - `"normal"` (core only), `"policy_only"`, or `"combined"` (both)
+- `scan_action` (optional): Core scan behavior - `"block"` or `"allow_with_warning"`
+- `policy_action` (optional): Policy check behavior - `"block"` or `"allow_with_warning"`
+- `abuse_action` (optional): Abuse detection (opt-in) - `"block"` or `"allow_with_warning"`
+- `chunk` (optional): Enable chunking for long prompts
+- `scan_options` (optional): Reusable `ScanOptions` dataclass (alternative to individual parameters)
 - `**options`: Additional options (headers, timeout)
+
+You can also pass a `ScanOptions` dataclass for reusable configurations:
+
+```python
+from lockllm import ScanOptions
+
+opts = ScanOptions(scan_mode="combined", scan_action="block")
+result = lockllm.scan(input=user_prompt, scan_options=opts)
+```
 
 **Returns:**
 ```python
 @dataclass
 class ScanResponse:
-    safe: bool                # Whether input is safe
-    label: Literal[0, 1]     # 0=safe, 1=malicious
-    confidence: float         # Confidence score (0-100)
-    injection: float          # Injection risk score (0-100)
-    sensitivity: str          # Sensitivity level used
-    request_id: str           # Unique request identifier
-    usage: Usage              # Usage statistics
-    debug: Optional[Debug]    # Debug info (Pro plan only)
+    safe: bool                                  # Whether input is safe
+    label: Literal[0, 1]                        # 0=safe, 1=malicious
+    confidence: Optional[float]                 # Confidence score (0-100), None in policy_only mode
+    injection: Optional[float]                  # Injection risk score (0-100), None in policy_only mode
+    sensitivity: str                            # Sensitivity level used
+    request_id: str                             # Unique request identifier
+    usage: Usage                                # Usage statistics
+    debug: Optional[Debug]                      # Debug info (when available)
+    policy_confidence: Optional[float]          # Policy check confidence (0-100)
+    policy_warnings: Optional[List[PolicyViolation]]  # Custom policy violations
+    scan_warning: Optional[ScanWarning]         # Core injection warning details
+    abuse_warnings: Optional[AbuseWarning]      # Abuse detection results
+    routing: Optional[RoutingInfo]              # Intelligent routing metadata
 ```
 
 ### Wrapper Functions
@@ -651,17 +691,46 @@ class ScanResponse:
 All wrapper functions follow the same pattern:
 
 ```python
-create_openai(api_key: str, base_url: Optional[str] = None, **kwargs) -> OpenAI
-create_anthropic(api_key: str, base_url: Optional[str] = None, **kwargs) -> Anthropic
-create_groq(api_key: str, base_url: Optional[str] = None, **kwargs) -> OpenAI
-# ... etc
+create_openai(
+    api_key: str,
+    base_url: Optional[str] = None,
+    proxy_options: Optional[ProxyOptions] = None,
+    **kwargs
+) -> OpenAI
+```
+
+Use `proxy_options` to configure security behavior at initialization time:
+
+```python
+from lockllm import create_openai, ProxyOptions
+
+openai = create_openai(
+    api_key=os.getenv("LOCKLLM_API_KEY"),
+    proxy_options=ProxyOptions(
+        scan_mode="combined",
+        scan_action="block",
+        policy_action="block",
+        route_action="auto",
+        cache_response=True,
+        cache_ttl=3600,
+    )
+)
+```
+
+All 17+ providers support `proxy_options`:
+
+```python
+create_openai(api_key, proxy_options=...) -> OpenAI
+create_anthropic(api_key, proxy_options=...) -> Anthropic
+create_groq(api_key, proxy_options=...) -> OpenAI
+# ... and 14 more providers
 ```
 
 For async versions, use the `create_async_*` prefix:
 
 ```python
-create_async_openai(api_key: str, **kwargs) -> AsyncOpenAI
-create_async_anthropic(api_key: str, **kwargs) -> AsyncAnthropic
+create_async_openai(api_key: str, proxy_options=..., **kwargs) -> AsyncOpenAI
+create_async_anthropic(api_key: str, proxy_options=..., **kwargs) -> AsyncAnthropic
 # ... etc
 ```
 
@@ -684,6 +753,37 @@ print(urls['openai'])     # 'https://api.lockllm.com/v1/proxy/openai'
 print(urls['anthropic'])  # 'https://api.lockllm.com/v1/proxy/anthropic'
 ```
 
+**Get the universal proxy URL (non-BYOK):**
+```python
+from lockllm import get_universal_proxy_url
+
+url = get_universal_proxy_url()
+# Returns: 'https://api.lockllm.com/v1/proxy'
+```
+
+Access 200+ models without configuring individual provider API keys. Uses LockLLM credits instead of BYOK.
+
+**Build LockLLM headers from proxy options:**
+```python
+from lockllm import ProxyOptions, build_lockllm_headers
+
+opts = ProxyOptions(scan_action="block", route_action="auto")
+headers = build_lockllm_headers(opts)
+# {'X-LockLLM-Scan-Action': 'block', 'X-LockLLM-Route-Action': 'auto'}
+```
+
+**Parse proxy response metadata:**
+```python
+from lockllm import parse_proxy_metadata
+
+metadata = parse_proxy_metadata(response.headers)
+print(metadata.safe)            # True/False
+print(metadata.scan_mode)       # 'combined'
+print(metadata.routing)         # RoutingMetadata or None
+print(metadata.cache_status)    # 'HIT' or 'MISS'
+print(metadata.credits_deducted)  # Amount deducted
+```
+
 ## Error Types
 
 LockLLM provides typed errors for comprehensive error handling:
@@ -694,6 +794,9 @@ LockLLMError (base)
 ├── AuthenticationError (401)
 ├── RateLimitError (429)
 ├── PromptInjectionError (400)
+├── PolicyViolationError (403)
+├── AbuseDetectedError (400)
+├── InsufficientCreditsError (402)
 ├── UpstreamError (502)
 ├── ConfigurationError (400)
 └── NetworkError (0)
@@ -710,6 +813,16 @@ class LockLLMError(Exception):
 
 class PromptInjectionError(LockLLMError):
     scan_result: ScanResult  # Detailed scan results
+
+class PolicyViolationError(LockLLMError):
+    violated_policies: List[Dict]  # List of violated policy details
+
+class AbuseDetectedError(LockLLMError):
+    abuse_details: Dict  # Abuse detection results (confidence, types, indicators)
+
+class InsufficientCreditsError(LockLLMError):
+    current_balance: Optional[float]  # Your current credit balance
+    estimated_cost: Optional[float]   # Estimated cost of the request
 
 class RateLimitError(LockLLMError):
     retry_after: Optional[int]  # Milliseconds until retry allowed
@@ -744,13 +857,14 @@ LockLLM adds minimal latency while providing comprehensive security protection. 
 
 ## Rate Limits
 
-LockLLM provides generous rate limits for all users, with the Free tier supporting most production use cases.
+LockLLM uses a 10-tier progressive system where rate limits increase with your usage. See [pricing](https://www.lockllm.com/pricing) for full tier details.
 
 | Tier | Requests per Minute | Best For |
 |------|---------------------|----------|
-| **Free** | 1,000 RPM | Most applications, startups, side projects |
-| **Pro** | 10,000 RPM | High-traffic applications, enterprise pilots |
-| **Enterprise** | Custom | Large-scale deployments, custom SLAs |
+| **Tier 1 (Free)** | 30 RPM | Getting started, testing, side projects |
+| **Tier 2-4** | 50-200 RPM | Light to active usage |
+| **Tier 5-7** | 500-2,000 RPM | Professional and business applications |
+| **Tier 8-10** | 5,000-20,000 RPM | High-traffic and enterprise deployments |
 
 **Smart Rate Limit Handling:**
 
@@ -853,17 +967,17 @@ For non-Python environments, use the REST API directly:
 
 **Scan Endpoint:**
 ```bash
-curl -X POST https://api.lockllm.com/scan \
-  -H "x-api-key: YOUR_LOCKLLM_API_KEY" \
+curl -X POST https://api.lockllm.com/v1/scan \
+  -H "Authorization: Bearer YOUR_LOCKLLM_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Your text to scan", "sensitivity": "medium"}'
+  -d '{"input": "Your text to scan", "sensitivity": "medium"}'
 ```
 
 **Proxy Endpoints:**
 ```bash
 # OpenAI-compatible proxy
 curl -X POST https://api.lockllm.com/v1/proxy/openai/chat/completions \
-  -H "x-api-key: YOUR_LOCKLLM_API_KEY" \
+  -H "Authorization: Bearer YOUR_LOCKLLM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
