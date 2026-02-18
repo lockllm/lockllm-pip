@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from lockllm.errors import ConfigurationError
+from lockllm.types.common import ProxyOptions
 
 
 class TestOpenAIWrapper:
@@ -110,6 +111,40 @@ class TestOpenAIWrapper:
                 api_key=api_key, base_url="https://api.lockllm.com/v1/proxy/openai"
             )
 
+    def test_create_openai_with_proxy_options(self, api_key):
+        """Test creating OpenAI client with proxy_options."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.OpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.openai_wrapper import create_openai
+
+            opts = ProxyOptions(scan_action="block", route_action="auto")
+            client = create_openai(api_key=api_key, proxy_options=opts)
+
+            call_kwargs = mock_openai.OpenAI.call_args[1]
+            default_headers = call_kwargs["default_headers"]
+            assert default_headers["X-LockLLM-Scan-Action"] == "block"
+            assert default_headers["X-LockLLM-Route-Action"] == "auto"
+
+    def test_create_async_openai_with_proxy_options(self, api_key):
+        """Test creating async OpenAI client with proxy_options."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.AsyncOpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.openai_wrapper import create_async_openai
+
+            opts = ProxyOptions(scan_action="block", sensitivity="high")
+            client = create_async_openai(api_key=api_key, proxy_options=opts)
+
+            call_kwargs = mock_openai.AsyncOpenAI.call_args[1]
+            default_headers = call_kwargs["default_headers"]
+            assert default_headers["X-LockLLM-Scan-Action"] == "block"
+            assert default_headers["X-LockLLM-Sensitivity"] == "high"
+
 
 class TestAnthropicWrapper:
     """Tests for Anthropic wrappers."""
@@ -159,6 +194,43 @@ class TestAnthropicWrapper:
 
             assert client == mock_client
             mock_anthropic.AsyncAnthropic.assert_called_once()
+
+    def test_create_anthropic_with_proxy_options(self, api_key):
+        """Test creating Anthropic client with proxy_options."""
+        mock_anthropic = Mock()
+        mock_client = Mock()
+        mock_anthropic.Anthropic.return_value = mock_client
+
+        with patch.dict('sys.modules', {'anthropic': mock_anthropic}):
+            from lockllm.wrappers.anthropic_wrapper import create_anthropic
+
+            opts = ProxyOptions(scan_action="block", policy_action="block")
+            client = create_anthropic(api_key=api_key, proxy_options=opts)
+
+            call_kwargs = mock_anthropic.Anthropic.call_args[1]
+            default_headers = call_kwargs["default_headers"]
+            assert default_headers["X-LockLLM-Scan-Action"] == "block"
+            assert default_headers["X-LockLLM-Policy-Action"] == "block"
+
+    def test_create_async_anthropic_with_proxy_options(self, api_key):
+        """Test creating async Anthropic client with proxy_options."""
+        mock_anthropic = Mock()
+        mock_client = Mock()
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
+
+        with patch.dict('sys.modules', {'anthropic': mock_anthropic}):
+            from lockllm.wrappers.anthropic_wrapper import create_async_anthropic
+
+            opts = ProxyOptions(
+                scan_mode="combined",
+                abuse_action="block",
+            )
+            client = create_async_anthropic(api_key=api_key, proxy_options=opts)
+
+            call_kwargs = mock_anthropic.AsyncAnthropic.call_args[1]
+            default_headers = call_kwargs["default_headers"]
+            assert default_headers["X-LockLLM-Scan-Mode"] == "combined"
+            assert default_headers["X-LockLLM-Abuse-Action"] == "block"
 
 
 class TestGenericWrappers:
@@ -240,6 +312,23 @@ class TestGenericWrappers:
             call_kwargs = mock_openai.OpenAI.call_args[1]
             assert call_kwargs["timeout"] == 30.0
             assert call_kwargs["max_retries"] == 5
+
+    def test_generic_wrapper_with_proxy_options(self, api_key):
+        """Test generic wrapper with proxy_options."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.OpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.generic_wrapper import create_groq
+
+            opts = ProxyOptions(scan_action="block", route_action="custom")
+            client = create_groq(api_key=api_key, proxy_options=opts)
+
+            call_kwargs = mock_openai.OpenAI.call_args[1]
+            default_headers = call_kwargs["default_headers"]
+            assert default_headers["X-LockLLM-Scan-Action"] == "block"
+            assert default_headers["X-LockLLM-Route-Action"] == "custom"
 
     def test_all_generic_wrappers(self, api_key):
         """Test all generic wrapper functions."""

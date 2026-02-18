@@ -27,9 +27,27 @@ Provider wrappers:
     ...     model="gpt-4",
     ...     messages=[{"role": "user", "content": "Hello!"}]
     ... )
+
+With proxy options:
+    >>> from lockllm import create_openai, ProxyOptions
+    >>> openai = create_openai(
+    ...     api_key="...",
+    ...     proxy_options=ProxyOptions(
+    ...         scan_action="block",
+    ...         route_action="auto"
+    ...     )
+    ... )
+
+Scan with modes:
+    >>> result = lockllm.scan(
+    ...     input="test",
+    ...     scan_mode="combined",
+    ...     scan_action="block",
+    ...     policy_action="block"
+    ... )
 """
 
-__version__ = "1.0.0"
+from ._version import __version__
 
 # Main clients
 from .async_client import AsyncLockLLM
@@ -37,22 +55,67 @@ from .client import LockLLM
 
 # Errors
 from .errors import (
+    AbuseDetectedError,
     AuthenticationError,
     ConfigurationError,
+    InsufficientCreditsError,
     LockLLMError,
     NetworkError,
+    PolicyViolationError,
     PromptInjectionError,
     RateLimitError,
     UpstreamError,
 )
 
-# Types
-from .types.common import LockLLMConfig, RequestOptions
-from .types.providers import PROVIDER_BASE_URLS, ProviderName
-from .types.scan import Debug, ScanRequest, ScanResponse, ScanResult, Sensitivity, Usage
+# Types - common
+from .types.common import (
+    LockLLMConfig,
+    ProxyAbuseDetected,
+    ProxyOptions,
+    ProxyPolicyWarnings,
+    ProxyResponseMetadata,
+    ProxyRoutingMetadata,
+    ProxyScanWarning,
+    RequestOptions,
+)
+
+# Types - providers
+from .types.providers import (
+    PROVIDER_BASE_URLS,
+    UNIVERSAL_PROXY_URL,
+    ComplexityTier,
+    ProviderName,
+    TaskType,
+)
+
+# Types - scan
+from .types.scan import (
+    AbuseWarning,
+    Debug,
+    PolicyViolation,
+    RouteAction,
+    RoutingInfo,
+    ScanAction,
+    ScanMode,
+    ScanOptions,
+    ScanRequest,
+    ScanResponse,
+    ScanResult,
+    ScanWarning,
+    Sensitivity,
+    Usage,
+    ViolatedCategory,
+)
 
 # Utilities
-from .utils import get_all_proxy_urls, get_proxy_url
+from .utils import (
+    build_lockllm_headers,
+    decode_detail_field,
+    get_all_proxy_urls,
+    get_proxy_url,
+    get_universal_proxy_url,
+    parse_proxy_metadata,
+)
 
 # Provider wrappers
 from .wrappers import (
@@ -103,23 +166,50 @@ __all__ = [
     "AuthenticationError",
     "RateLimitError",
     "PromptInjectionError",
+    "PolicyViolationError",
+    "AbuseDetectedError",
+    "InsufficientCreditsError",
     "UpstreamError",
     "ConfigurationError",
     "NetworkError",
-    # Types
+    # Types - common
     "LockLLMConfig",
     "RequestOptions",
+    "ProxyOptions",
+    "ProxyResponseMetadata",
+    "ProxyScanWarning",
+    "ProxyPolicyWarnings",
+    "ProxyAbuseDetected",
+    "ProxyRoutingMetadata",
+    # Types - providers
     "ProviderName",
     "PROVIDER_BASE_URLS",
+    "UNIVERSAL_PROXY_URL",
+    "TaskType",
+    "ComplexityTier",
+    # Types - scan
     "ScanRequest",
     "ScanResponse",
     "ScanResult",
+    "ScanOptions",
+    "ScanMode",
+    "ScanAction",
+    "RouteAction",
+    "PolicyViolation",
+    "ViolatedCategory",
+    "ScanWarning",
+    "AbuseWarning",
+    "RoutingInfo",
     "Usage",
     "Debug",
     "Sensitivity",
     # Utilities
     "get_proxy_url",
     "get_all_proxy_urls",
+    "get_universal_proxy_url",
+    "build_lockllm_headers",
+    "parse_proxy_metadata",
+    "decode_detail_field",
     # Provider wrappers - OpenAI
     "create_openai",
     "create_async_openai",

@@ -1,6 +1,6 @@
 """Exception hierarchy for LockLLM SDK."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from .types.scan import ScanResult
 
@@ -107,6 +107,88 @@ class PromptInjectionError(LockLLMError):
         self.scan_result = scan_result
 
 
+class PolicyViolationError(LockLLMError):
+    """Raised when custom policy violation is detected (403).
+
+    This error indicates that the input violates one or more
+    custom content policies defined by the user.
+
+    Attributes:
+        violated_policies: List of violated policy details
+    """
+
+    def __init__(
+        self,
+        message: str,
+        violated_policies: Optional[List[Dict[str, Any]]] = None,
+        request_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            error_type="lockllm_policy_error",
+            code="policy_violation",
+            status=403,
+            request_id=request_id,
+        )
+        self.violated_policies = violated_policies or []
+
+
+class AbuseDetectedError(LockLLMError):
+    """Raised when abuse is detected (400).
+
+    This error indicates that the request exhibits patterns
+    consistent with automated misuse or abuse.
+
+    Attributes:
+        abuse_details: Detailed abuse detection results
+    """
+
+    def __init__(
+        self,
+        message: str,
+        abuse_details: Optional[Dict[str, Any]] = None,
+        request_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            error_type="lockllm_abuse_error",
+            code="abuse_detected",
+            status=400,
+            request_id=request_id,
+        )
+        self.abuse_details = abuse_details or {}
+
+
+class InsufficientCreditsError(LockLLMError):
+    """Raised when user has insufficient credits (402).
+
+    This error indicates that the user's credit balance is too low
+    to process the request. Top up credits at
+    https://www.lockllm.com/dashboard/billing
+
+    Attributes:
+        current_balance: Current credit balance
+        estimated_cost: Estimated cost of the request
+    """
+
+    def __init__(
+        self,
+        message: str,
+        current_balance: Optional[float] = None,
+        estimated_cost: Optional[float] = None,
+        request_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            error_type="lockllm_balance_error",
+            code="insufficient_credits",
+            status=402,
+            request_id=request_id,
+        )
+        self.current_balance = current_balance
+        self.estimated_cost = estimated_cost
+
+
 class UpstreamError(LockLLMError):
     """Raised when upstream provider fails (502).
 
@@ -203,9 +285,37 @@ def parse_error(
     # Prompt injection error
     if code == "prompt_injection_detected" and "scan_result" in error:
         scan_data = error["scan_result"]
+        # Filter to known ScanResult fields to avoid TypeError on new fields
+        known_fields = {"safe", "label", "confidence", "injection", "sensitivity"}
+        filtered_data = {k: v for k, v in scan_data.items() if k in known_fields}
         return PromptInjectionError(
             message=message,
-            scan_result=ScanResult(**scan_data),
+            scan_result=ScanResult(**filtered_data),
+            request_id=error.get("request_id", request_id),
+        )
+
+    # Policy violation error
+    if code == "policy_violation":
+        return PolicyViolationError(
+            message=message,
+            violated_policies=error.get("violated_policies"),
+            request_id=error.get("request_id", request_id),
+        )
+
+    # Abuse detected error
+    if code == "abuse_detected":
+        return AbuseDetectedError(
+            message=message,
+            abuse_details=error.get("abuse_details"),
+            request_id=error.get("request_id", request_id),
+        )
+
+    # Insufficient credits error
+    if code in ("insufficient_credits", "no_balance", "insufficient_routing_credits", "balance_check_failed") or error_type == "lockllm_balance_error":
+        return InsufficientCreditsError(
+            message=message,
+            current_balance=error.get("current_balance"),
+            estimated_cost=error.get("estimated_cost"),
             request_id=error.get("request_id", request_id),
         )
 
@@ -222,7 +332,7 @@ def parse_error(
         return UpstreamError(message, request_id=request_id)
 
     # Configuration error
-    if error_type == "configuration_error" or code == "no_upstream_key":
+    if error_type in ("configuration_error", "lockllm_config_error") or code in ("no_upstream_key", "no_byok_key", "invalid_provider_for_credits_mode"):
         return ConfigurationError(message)
 
     # Generic error

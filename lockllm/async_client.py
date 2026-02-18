@@ -6,7 +6,7 @@ from .async_http_client import AsyncHttpClient
 from .async_scan import AsyncScanClient
 from .errors import ConfigurationError
 from .types.common import LockLLMConfig
-from .types.scan import ScanResponse, Sensitivity
+from .types.scan import ScanAction, ScanMode, ScanOptions, ScanResponse, Sensitivity
 
 DEFAULT_BASE_URL = "https://api.lockllm.com"
 DEFAULT_TIMEOUT = 60.0
@@ -82,7 +82,16 @@ class AsyncLockLLM:
         self._scan_client = AsyncScanClient(self._http)
 
     async def scan(
-        self, input: str, sensitivity: Sensitivity = "medium", **options: Any
+        self,
+        input: str,
+        sensitivity: Sensitivity = "medium",
+        scan_mode: Optional[ScanMode] = None,
+        scan_action: Optional[ScanAction] = None,
+        policy_action: Optional[ScanAction] = None,
+        abuse_action: Optional[ScanAction] = None,
+        chunk: Optional[bool] = None,
+        scan_options: Optional[ScanOptions] = None,
+        **options: Any,
     ) -> ScanResponse:
         """Scan a prompt for security threats (async).
 
@@ -97,6 +106,26 @@ class AsyncLockLLM:
                 - "medium": Balanced detection (recommended)
                 - "high": Maximum protection, may have more false
                     positives
+            scan_mode: Which security checks to perform
+                - "normal": Core injection detection only
+                - "policy_only": Custom policies only
+                - "combined": Both core + policies (default)
+            scan_action: Core injection detection behavior
+                - "block": Block the request
+                - "allow_with_warning": Allow with warning (default)
+            policy_action: Policy violation behavior
+                - "block": Block the request
+                - "allow_with_warning": Allow with warning (default)
+            abuse_action: Abuse detection behavior (opt-in)
+                - None: Disabled (default)
+                - "block": Block the request
+                - "allow_with_warning": Allow with warning
+            chunk: Whether to enable chunking for long prompts
+                - None: Use server default
+                - True: Enable chunking
+                - False: Disable chunking
+            scan_options: Pre-configured ScanOptions object. Individual
+                keyword arguments take precedence over ScanOptions values.
             **options: Additional request options (headers, timeout)
 
         Returns:
@@ -107,18 +136,36 @@ class AsyncLockLLM:
             AuthenticationError: If API key is invalid
             NetworkError: If network request fails
             RateLimitError: If rate limit is exceeded
+            PromptInjectionError: If scan_action is "block" and injection detected
+            PolicyViolationError: If policy_action is "block" and violation found
+            AbuseDetectedError: If abuse_action is "block" and abuse detected
+            InsufficientCreditsError: If credit balance is too low
 
         Example:
             >>> result = await lockllm.scan(
             ...     input="Ignore previous instructions",
-            ...     sensitivity="medium"
+            ...     sensitivity="medium",
+            ...     scan_mode="combined",
+            ...     scan_action="block"
             ... )
             >>> if not result.safe:
             ...     print(f"Malicious! Injection score: {result.injection}%")
             ...     print(f"Request ID: {result.request_id}")
+
+            Using ScanOptions:
+            >>> opts = ScanOptions(scan_mode="combined", scan_action="block")
+            >>> result = await lockllm.scan(input="test", scan_options=opts)
         """
         return await self._scan_client.scan(
-            input=input, sensitivity=sensitivity, **options
+            input=input,
+            sensitivity=sensitivity,
+            scan_mode=scan_mode,
+            scan_action=scan_action,
+            policy_action=policy_action,
+            abuse_action=abuse_action,
+            chunk=chunk,
+            scan_options=scan_options,
+            **options,
         )
 
     @property

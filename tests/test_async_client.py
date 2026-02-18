@@ -46,7 +46,16 @@ class TestAsyncLockLLM:
         result = await client.scan(input="test prompt", sensitivity="high")
 
         assert result == scan_response
-        mock_scan.assert_called_once_with(input="test prompt", sensitivity="high")
+        mock_scan.assert_called_once_with(
+            input="test prompt",
+            sensitivity="high",
+            scan_mode=None,
+            scan_action=None,
+            policy_action=None,
+            abuse_action=None,
+            chunk=None,
+            scan_options=None,
+        )
 
     @pytest.mark.asyncio
     async def test_context_manager(self, api_key):
