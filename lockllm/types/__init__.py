@@ -2,7 +2,7 @@
 
 from .common import LockLLMConfig, RequestOptions
 from .providers import PROVIDER_BASE_URLS, ProviderName
-from .scan import Debug, ScanRequest, ScanResponse, ScanResult, Sensitivity, Usage
+from .scan import Debug, PIIAction, PIIResult, ScanRequest, ScanResponse, ScanResult, Sensitivity, Usage
 
 __all__ = [
     "LockLLMConfig",
@@ -15,4 +15,6 @@ __all__ = [
     "Usage",
     "Debug",
     "Sensitivity",
+    "PIIAction",
+    "PIIResult",
 ]

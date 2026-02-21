@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional, cast
 from .types.common import (
     ProxyAbuseDetected,
     ProxyOptions,
+    ProxyPIIDetected,
     ProxyPolicyWarnings,
     ProxyResponseMetadata,
     ProxyRoutingMetadata,
@@ -166,6 +167,8 @@ def build_lockllm_headers(options: ProxyOptions) -> Dict[str, str]:
         headers["X-LockLLM-Cache-TTL"] = str(options.cache_ttl)
     if options.chunk is not None:
         headers["X-LockLLM-Chunk"] = str(options.chunk).lower()
+    if options.pii_action is not None:
+        headers["X-LockLLM-PII-Action"] = options.pii_action
 
     return headers
 
@@ -286,6 +289,19 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
             confidence=float(confidence) if confidence else 0,
             types=types or "",
             detail=detail or "",
+        )
+
+    # Parse PII detection
+    pii_detected_val = get_header("x-lockllm-pii-detected")
+    if pii_detected_val:
+        pii_types = get_header("x-lockllm-pii-types")
+        pii_count = get_header("x-lockllm-pii-count")
+        pii_action = get_header("x-lockllm-pii-action")
+        metadata.pii_detected = ProxyPIIDetected(
+            detected=pii_detected_val == "true",
+            entity_types=pii_types or "",
+            entity_count=int(pii_count) if pii_count else 0,
+            action=pii_action or "",
         )
 
     # Parse routing metadata

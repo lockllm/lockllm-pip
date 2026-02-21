@@ -6,6 +6,8 @@ from .http_client import HttpClient
 from .types.scan import (
     AbuseWarning,
     Debug,
+    PIIAction,
+    PIIResult,
     PolicyViolation,
     RoutingInfo,
     ScanAction,
@@ -51,6 +53,7 @@ class ScanClient:
         scan_action: Optional[ScanAction] = None,
         policy_action: Optional[ScanAction] = None,
         abuse_action: Optional[ScanAction] = None,
+        pii_action: Optional[PIIAction] = None,
         chunk: Optional[bool] = None,
         scan_options: Optional[ScanOptions] = None,
         **options: Any,
@@ -82,6 +85,11 @@ class ScanClient:
                 - None: Disabled (default)
                 - "block": Block the request
                 - "allow_with_warning": Allow with warning
+            pii_action: PII detection behavior (opt-in)
+                - None: Disabled (default)
+                - "strip": Strip PII entities from the prompt
+                - "block": Block the request
+                - "allow_with_warning": Allow with PII info in response
             chunk: Whether to enable chunking for long prompts
                 - None: Use server default
                 - True: Enable chunking
@@ -101,6 +109,7 @@ class ScanClient:
             PromptInjectionError: If scan_action is "block" and injection detected
             PolicyViolationError: If policy_action is "block" and violation found
             AbuseDetectedError: If abuse_action is "block" and abuse detected
+            PIIDetectedError: If pii_action is "block" and PII detected
             InsufficientCreditsError: If credit balance is too low
 
         Example:
@@ -128,6 +137,8 @@ class ScanClient:
                 policy_action = scan_options.policy_action
             if abuse_action is None:
                 abuse_action = scan_options.abuse_action
+            if pii_action is None:
+                pii_action = scan_options.pii_action
             if chunk is None:
                 chunk = scan_options.chunk
 
@@ -140,6 +151,7 @@ class ScanClient:
             scan_action=scan_action,
             policy_action=policy_action,
             abuse_action=abuse_action,
+            pii_action=pii_action,
             sensitivity=sensitivity,
             chunk=chunk,
         )
@@ -167,6 +179,7 @@ def _build_scan_headers(
     scan_action: Optional[ScanAction] = None,
     policy_action: Optional[ScanAction] = None,
     abuse_action: Optional[ScanAction] = None,
+    pii_action: Optional[PIIAction] = None,
     sensitivity: Optional[Sensitivity] = None,
     chunk: Optional[bool] = None,
 ) -> Dict[str, str]:
@@ -180,6 +193,8 @@ def _build_scan_headers(
         headers["X-LockLLM-Policy-Action"] = policy_action
     if abuse_action is not None:
         headers["X-LockLLM-Abuse-Action"] = abuse_action
+    if pii_action is not None:
+        headers["X-LockLLM-PII-Action"] = pii_action
     if sensitivity is not None:
         headers["X-LockLLM-Sensitivity"] = sensitivity
     if chunk is not None:
@@ -268,6 +283,17 @@ def _parse_scan_response(data: dict, request_id: str) -> ScanResponse:
             estimated_cost=rt.get("estimated_cost"),
         )
 
+    # Parse PII result (optional)
+    pii_result: Optional[PIIResult] = None
+    if "pii_result" in data and data["pii_result"]:
+        pr = data["pii_result"]
+        pii_result = PIIResult(
+            detected=pr.get("detected", False),
+            entity_types=pr.get("entity_types", []),
+            entity_count=pr.get("entity_count", 0),
+            redacted_input=pr.get("redacted_input"),
+        )
+
     return ScanResponse(
         safe=data["safe"],
         label=data["label"],
@@ -282,4 +308,5 @@ def _parse_scan_response(data: dict, request_id: str) -> ScanResponse:
         scan_warning=scan_warning,
         abuse_warnings=abuse_warnings,
         routing=routing,
+        pii_result=pii_result,
     )

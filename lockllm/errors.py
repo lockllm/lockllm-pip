@@ -159,6 +159,35 @@ class AbuseDetectedError(LockLLMError):
         self.abuse_details = abuse_details or {}
 
 
+class PIIDetectedError(LockLLMError):
+    """Raised when PII is detected and action is block (403).
+
+    This error indicates that personally identifiable information
+    was found in the input and the PII action was set to "block".
+
+    Attributes:
+        entity_types: List of PII entity types detected
+        entity_count: Number of PII entities found
+    """
+
+    def __init__(
+        self,
+        message: str,
+        entity_types: Optional[List[str]] = None,
+        entity_count: Optional[int] = None,
+        request_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            error_type="lockllm_pii_error",
+            code="pii_detected",
+            status=403,
+            request_id=request_id,
+        )
+        self.entity_types = entity_types or []
+        self.entity_count = entity_count or 0
+
+
 class InsufficientCreditsError(LockLLMError):
     """Raised when user has insufficient credits (402).
 
@@ -307,6 +336,16 @@ def parse_error(
         return AbuseDetectedError(
             message=message,
             abuse_details=error.get("abuse_details"),
+            request_id=error.get("request_id", request_id),
+        )
+
+    # PII detected error
+    if code == "pii_detected":
+        pii_details = error.get("pii_details", {})
+        return PIIDetectedError(
+            message=message,
+            entity_types=pii_details.get("entity_types", []),
+            entity_count=pii_details.get("entity_count", 0),
             request_id=error.get("request_id", request_id),
         )
 

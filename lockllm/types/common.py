@@ -78,6 +78,11 @@ class ProxyOptions:
             - None: Use server default
             - True: Enable chunking
             - False: Disable chunking
+        pii_action: PII detection behavior (opt-in)
+            - None: PII detection disabled (default)
+            - "strip": Strip PII entities from the prompt
+            - "block": Block the request
+            - "allow_with_warning": Allow with PII info in response
     """
 
     scan_mode: Optional[str] = None
@@ -89,6 +94,7 @@ class ProxyOptions:
     cache_response: Optional[bool] = None
     cache_ttl: Optional[int] = None
     chunk: Optional[bool] = None
+    pii_action: Optional[str] = None
 
 
 @dataclass
@@ -137,6 +143,23 @@ class ProxyAbuseDetected:
 
 
 @dataclass
+class ProxyPIIDetected:
+    """PII detection metadata from proxy response headers.
+
+    Attributes:
+        detected: Whether PII was detected
+        entity_types: Comma-separated PII entity types detected
+        entity_count: Number of PII entities found
+        action: PII action taken (strip, block, allow_with_warning)
+    """
+
+    detected: bool
+    entity_types: str
+    entity_count: int
+    action: str
+
+
+@dataclass
 class ProxyRoutingMetadata:
     """Routing metadata from proxy response headers.
 
@@ -181,6 +204,7 @@ class ProxyResponseMetadata:
         scan_warning: Scan warning details (if detected)
         policy_warnings: Policy violation details (if detected)
         abuse_detected: Abuse detection details (if detected)
+        pii_detected: PII detection details (if PII detection enabled)
         routing: Routing metadata (if routing was enabled)
         credits_reserved: Credits reserved for request
         routing_fee_reserved: Routing fee reserved
@@ -210,6 +234,7 @@ class ProxyResponseMetadata:
     scan_warning: Optional[ProxyScanWarning] = None
     policy_warnings: Optional[ProxyPolicyWarnings] = None
     abuse_detected: Optional[ProxyAbuseDetected] = None
+    pii_detected: Optional[ProxyPIIDetected] = None
     routing: Optional[ProxyRoutingMetadata] = None
     credits_reserved: Optional[float] = None
     routing_fee_reserved: Optional[float] = None
