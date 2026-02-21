@@ -83,6 +83,7 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 | **Custom Content Policies** | Define your own content rules in the dashboard and enforce them automatically across all providers |
 | **AI Abuse Detection** | Detect bot-generated content, repetition attacks, and resource exhaustion from your end-users |
 | **Intelligent Routing** | Automatically select the optimal model for each request based on task type and complexity to save costs |
+| **PII Detection & Redaction** | Detect and automatically redact emails, phone numbers, SSNs, credit cards, and other PII before prompts reach AI providers |
 | **Response Caching** | Cache identical LLM responses to reduce costs and latency on repeated queries |
 | **Enterprise Privacy** | Provider keys encrypted at rest, prompts never stored |
 | **Production Ready** | Battle-tested with automatic retries, timeouts, and error handling |
@@ -398,6 +399,7 @@ from lockllm import (
     PromptInjectionError,
     PolicyViolationError,
     AbuseDetectedError,
+    PIIDetectedError,
     InsufficientCreditsError,
     AuthenticationError,
     RateLimitError,
@@ -425,6 +427,11 @@ except PolicyViolationError as error:
 except AbuseDetectedError as error:
     # AI abuse detected (bot content, repetition, etc.)
     print(f"Abuse detected: {error.abuse_details}")
+
+except PIIDetectedError as error:
+    # PII detected and action was "block"
+    print(f"PII found: {error.entity_types}")
+    print(f"Entity count: {error.entity_count}")
 
 except InsufficientCreditsError as error:
     # Not enough credits
@@ -641,6 +648,7 @@ lockllm.scan(
     scan_action: Optional[ScanAction] = None,
     policy_action: Optional[ScanAction] = None,
     abuse_action: Optional[ScanAction] = None,
+    pii_action: Optional[PIIAction] = None,
     chunk: Optional[bool] = None,
     scan_options: Optional[ScanOptions] = None,
     **options
@@ -654,6 +662,7 @@ lockllm.scan(
 - `scan_action` (optional): Core scan behavior - `"block"` or `"allow_with_warning"`
 - `policy_action` (optional): Policy check behavior - `"block"` or `"allow_with_warning"`
 - `abuse_action` (optional): Abuse detection (opt-in) - `"block"` or `"allow_with_warning"`
+- `pii_action` (optional): PII detection (opt-in) - `"strip"` (redact PII), `"block"`, or `"allow_with_warning"`
 - `chunk` (optional): Enable chunking for long prompts
 - `scan_options` (optional): Reusable `ScanOptions` dataclass (alternative to individual parameters)
 - `**options`: Additional options (headers, timeout)
@@ -684,6 +693,7 @@ class ScanResponse:
     scan_warning: Optional[ScanWarning]         # Core injection warning details
     abuse_warnings: Optional[AbuseWarning]      # Abuse detection results
     routing: Optional[RoutingInfo]              # Intelligent routing metadata
+    pii_result: Optional[PIIResult]             # PII detection results (when PII detection enabled)
 ```
 
 ### Wrapper Functions
@@ -713,6 +723,7 @@ openai = create_openai(
         route_action="auto",
         cache_response=True,
         cache_ttl=3600,
+        pii_action="strip",
     )
 )
 ```
@@ -780,6 +791,7 @@ metadata = parse_proxy_metadata(response.headers)
 print(metadata.safe)            # True/False
 print(metadata.scan_mode)       # 'combined'
 print(metadata.routing)         # RoutingMetadata or None
+print(metadata.pii_detected)    # ProxyPIIDetected or None
 print(metadata.cache_status)    # 'HIT' or 'MISS'
 print(metadata.credits_deducted)  # Amount deducted
 ```
@@ -796,6 +808,7 @@ LockLLMError (base)
 ├── PromptInjectionError (400)
 ├── PolicyViolationError (403)
 ├── AbuseDetectedError (400)
+├── PIIDetectedError (403)
 ├── InsufficientCreditsError (402)
 ├── UpstreamError (502)
 ├── ConfigurationError (400)
@@ -819,6 +832,10 @@ class PolicyViolationError(LockLLMError):
 
 class AbuseDetectedError(LockLLMError):
     abuse_details: Dict  # Abuse detection results (confidence, types, indicators)
+
+class PIIDetectedError(LockLLMError):
+    entity_types: List[str]      # PII entity types detected (e.g., ["email", "phone_number"])
+    entity_count: int            # Number of PII entities found
 
 class InsufficientCreditsError(LockLLMError):
     current_balance: Optional[float]  # Your current credit balance
