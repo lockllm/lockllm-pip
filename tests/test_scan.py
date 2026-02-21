@@ -220,6 +220,16 @@ class TestBuildScanHeaders:
         assert headers["X-LockLLM-Scan-Mode"] == "normal"
         assert headers["X-LockLLM-Sensitivity"] == "low"
 
+    def test_pii_action_header(self):
+        """Test building headers with pii_action."""
+        headers = _build_scan_headers(pii_action="block")
+        assert headers["X-LockLLM-PII-Action"] == "block"
+
+    def test_pii_action_strip(self):
+        """Test building headers with pii_action=strip."""
+        headers = _build_scan_headers(pii_action="strip")
+        assert headers["X-LockLLM-PII-Action"] == "strip"
+
 
 class TestParseScanResponse:
     """Tests for _parse_scan_response."""
@@ -420,3 +430,42 @@ class TestParseScanResponse:
         result = _parse_scan_response(data, "fallback_req_id")
 
         assert result.request_id == "fallback_req_id"
+
+    def test_parse_response_with_pii_result(self):
+        """Test parsing response with PII detection result."""
+        data = {
+            "safe": True,
+            "label": 0,
+            "confidence": 95.0,
+            "injection": 2.0,
+            "sensitivity": "medium",
+            "usage": {"requests": 1, "input_chars": 50},
+            "pii_result": {
+                "detected": True,
+                "entity_types": ["email", "phone"],
+                "entity_count": 3,
+                "redacted_input": "Contact me at [EMAIL] or [PHONE]",
+            },
+        }
+        result = _parse_scan_response(data, "req_pii")
+
+        assert result.pii_result is not None
+        assert result.pii_result.detected is True
+        assert result.pii_result.entity_types == ["email", "phone"]
+        assert result.pii_result.entity_count == 3
+        assert result.pii_result.redacted_input == "Contact me at [EMAIL] or [PHONE]"
+
+    def test_parse_response_with_empty_pii_result(self):
+        """Test parsing response with empty pii_result dict."""
+        data = {
+            "safe": True,
+            "label": 0,
+            "confidence": 95.0,
+            "injection": 2.0,
+            "sensitivity": "medium",
+            "usage": {"requests": 1, "input_chars": 25},
+            "pii_result": {},
+        }
+        result = _parse_scan_response(data, "req_123")
+
+        assert result.pii_result is None

@@ -423,6 +423,76 @@ class TestGenericWrappers:
             assert mock_openai.AsyncOpenAI.call_count == 3
 
 
+class TestUniversalAndCustomWrappers:
+    """Tests for universal proxy and custom endpoint wrappers."""
+
+    def test_create_client(self, api_key):
+        """Test creating universal proxy client (sync)."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.OpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.generic_wrapper import create_client
+
+            client = create_client(api_key=api_key)
+
+            assert client == mock_client
+            call_kwargs = mock_openai.OpenAI.call_args[1]
+            assert call_kwargs["base_url"] == "https://api.lockllm.com/v1/proxy"
+
+    def test_create_async_client(self, api_key):
+        """Test creating universal proxy client (async)."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.AsyncOpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.generic_wrapper import create_async_client
+
+            client = create_async_client(api_key=api_key)
+
+            assert client == mock_client
+            call_kwargs = mock_openai.AsyncOpenAI.call_args[1]
+            assert call_kwargs["base_url"] == "https://api.lockllm.com/v1/proxy"
+
+    def test_create_openai_compatible(self, api_key):
+        """Test creating custom OpenAI-compatible client (sync)."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.OpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.generic_wrapper import create_openai_compatible
+
+            custom_url = "https://api.lockllm.com/v1/proxy/custom"
+            client = create_openai_compatible(
+                api_key=api_key, base_url=custom_url
+            )
+
+            assert client == mock_client
+            call_kwargs = mock_openai.OpenAI.call_args[1]
+            assert call_kwargs["base_url"] == custom_url
+
+    def test_create_async_openai_compatible(self, api_key):
+        """Test creating custom OpenAI-compatible client (async)."""
+        mock_openai = Mock()
+        mock_client = Mock()
+        mock_openai.AsyncOpenAI.return_value = mock_client
+
+        with patch.dict('sys.modules', {'openai': mock_openai}):
+            from lockllm.wrappers.generic_wrapper import create_async_openai_compatible
+
+            custom_url = "https://api.lockllm.com/v1/proxy/custom"
+            client = create_async_openai_compatible(
+                api_key=api_key, base_url=custom_url
+            )
+
+            assert client == mock_client
+            call_kwargs = mock_openai.AsyncOpenAI.call_args[1]
+            assert call_kwargs["base_url"] == custom_url
+
+
 class TestWrapperImports:
     """Test that all wrapper functions are importable."""
 

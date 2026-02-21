@@ -268,6 +268,20 @@ class TestBuildLockLLMHeaders:
 
         assert headers["X-LockLLM-Chunk"] == "false"
 
+    def test_pii_action_header(self):
+        """Test pii_action produces X-LockLLM-PII-Action header."""
+        options = ProxyOptions(pii_action="block")
+        headers = build_lockllm_headers(options)
+
+        assert headers["X-LockLLM-PII-Action"] == "block"
+
+    def test_pii_action_strip(self):
+        """Test pii_action=strip produces correct header."""
+        options = ProxyOptions(pii_action="strip")
+        headers = build_lockllm_headers(options)
+
+        assert headers["X-LockLLM-PII-Action"] == "strip"
+
 
 class TestDecodeDetailField:
     """Tests for decode_detail_field."""
@@ -617,3 +631,53 @@ class TestParseProxyMetadata:
 
         assert metadata.scan_mode == "normal"
         assert metadata.credits_mode == "lockllm_credits"
+
+    def test_sensitivity_header(self):
+        """Test parsing sensitivity header."""
+        headers = {
+            "x-request-id": "req_sens",
+            "x-lockllm-scanned": "true",
+            "x-lockllm-safe": "true",
+            "x-lockllm-provider": "openai",
+            "x-lockllm-sensitivity": "high",
+        }
+        metadata = parse_proxy_metadata(headers)
+
+        assert metadata.sensitivity == "high"
+
+    def test_pii_detected_headers(self):
+        """Test parsing PII detection headers."""
+        headers = {
+            "x-request-id": "req_pii",
+            "x-lockllm-scanned": "true",
+            "x-lockllm-safe": "true",
+            "x-lockllm-provider": "openai",
+            "x-lockllm-pii-detected": "true",
+            "x-lockllm-pii-types": "email,phone,ssn",
+            "x-lockllm-pii-count": "5",
+            "x-lockllm-pii-action": "strip",
+        }
+        metadata = parse_proxy_metadata(headers)
+
+        assert metadata.pii_detected is not None
+        assert metadata.pii_detected.detected is True
+        assert metadata.pii_detected.entity_types == "email,phone,ssn"
+        assert metadata.pii_detected.entity_count == 5
+        assert metadata.pii_detected.action == "strip"
+
+    def test_pii_detected_false(self):
+        """Test parsing PII detection with detected=false."""
+        headers = {
+            "x-request-id": "req_pii2",
+            "x-lockllm-scanned": "true",
+            "x-lockllm-safe": "true",
+            "x-lockllm-provider": "openai",
+            "x-lockllm-pii-detected": "false",
+        }
+        metadata = parse_proxy_metadata(headers)
+
+        assert metadata.pii_detected is not None
+        assert metadata.pii_detected.detected is False
+        assert metadata.pii_detected.entity_types == ""
+        assert metadata.pii_detected.entity_count == 0
+        assert metadata.pii_detected.action == ""
