@@ -353,6 +353,7 @@ def parse_error(
     insufficient_codes = (
         "insufficient_credits", "no_balance",
         "insufficient_routing_credits", "balance_check_failed",
+        "credits_unavailable",
     )
     if code in insufficient_codes or error_type == "lockllm_balance_error":
         return InsufficientCreditsError(
