@@ -6,7 +6,14 @@ from .async_http_client import AsyncHttpClient
 from .async_scan import AsyncScanClient
 from .errors import ConfigurationError
 from .types.common import LockLLMConfig
-from .types.scan import PIIAction, ScanAction, ScanMode, ScanOptions, ScanResponse, Sensitivity
+from .types.scan import (
+    PIIAction,
+    ScanAction,
+    ScanMode,
+    ScanOptions,
+    ScanResponse,
+    Sensitivity,
+)
 
 DEFAULT_BASE_URL = "https://api.lockllm.com"
 DEFAULT_TIMEOUT = 60.0

@@ -89,8 +89,12 @@ def create_client(
         ... )
     """
     return _create_openai_compatible(
-        "openai", api_key, base_url or UNIVERSAL_PROXY_URL,
-        False, proxy_options, **kwargs
+        "openai",
+        api_key,
+        base_url or UNIVERSAL_PROXY_URL,
+        False,
+        proxy_options,
+        **kwargs,
     )
 
 
@@ -132,8 +136,12 @@ def create_async_client(
         ...     )
     """
     return _create_openai_compatible(
-        "openai", api_key, base_url or UNIVERSAL_PROXY_URL,
-        True, proxy_options, **kwargs
+        "openai",
+        api_key,
+        base_url or UNIVERSAL_PROXY_URL,
+        True,
+        proxy_options,
+        **kwargs,
     )
 
 

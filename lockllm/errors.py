@@ -351,8 +351,10 @@ def parse_error(
 
     # Insufficient credits error
     insufficient_codes = (
-        "insufficient_credits", "no_balance",
-        "insufficient_routing_credits", "balance_check_failed",
+        "insufficient_credits",
+        "no_balance",
+        "insufficient_routing_credits",
+        "balance_check_failed",
         "credits_unavailable",
     )
     if code in insufficient_codes or error_type == "lockllm_balance_error":
@@ -378,7 +380,8 @@ def parse_error(
     # Configuration error
     config_types = ("configuration_error", "lockllm_config_error")
     config_codes = (
-        "no_upstream_key", "no_byok_key",
+        "no_upstream_key",
+        "no_byok_key",
         "invalid_provider_for_credits_mode",
     )
     if error_type in config_types or code in config_codes:
