@@ -5,6 +5,7 @@ from typing import Any, Optional
 from .async_http_client import AsyncHttpClient
 from .scan import _build_scan_headers, _parse_scan_response
 from .types.scan import (
+    PIIAction,
     ScanAction,
     ScanMode,
     ScanOptions,
@@ -45,6 +46,7 @@ class AsyncScanClient:
         scan_action: Optional[ScanAction] = None,
         policy_action: Optional[ScanAction] = None,
         abuse_action: Optional[ScanAction] = None,
+        pii_action: Optional[PIIAction] = None,
         chunk: Optional[bool] = None,
         scan_options: Optional[ScanOptions] = None,
         **options: Any,
@@ -76,6 +78,11 @@ class AsyncScanClient:
                 - None: Disabled (default)
                 - "block": Block the request
                 - "allow_with_warning": Allow with warning
+            pii_action: PII detection behavior (opt-in)
+                - None: Disabled (default)
+                - "strip": Strip PII entities from the prompt
+                - "block": Block the request
+                - "allow_with_warning": Allow with PII info in response
             chunk: Whether to enable chunking for long prompts
                 - None: Use server default
                 - True: Enable chunking
@@ -95,6 +102,7 @@ class AsyncScanClient:
             PromptInjectionError: If scan_action is "block" and injection detected
             PolicyViolationError: If policy_action is "block" and violation found
             AbuseDetectedError: If abuse_action is "block" and abuse detected
+            PIIDetectedError: If pii_action is "block" and PII detected
             InsufficientCreditsError: If credit balance is too low
 
         Example:
@@ -122,6 +130,8 @@ class AsyncScanClient:
                 policy_action = scan_options.policy_action
             if abuse_action is None:
                 abuse_action = scan_options.abuse_action
+            if pii_action is None:
+                pii_action = scan_options.pii_action
             if chunk is None:
                 chunk = scan_options.chunk
 
@@ -134,6 +144,7 @@ class AsyncScanClient:
             scan_action=scan_action,
             policy_action=policy_action,
             abuse_action=abuse_action,
+            pii_action=pii_action,
             sensitivity=sensitivity,
             chunk=chunk,
         )

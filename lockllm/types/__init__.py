@@ -1,17 +1,75 @@
 """Type definitions for LockLLM SDK."""
 
-from .common import LockLLMConfig, RequestOptions
-from .providers import PROVIDER_BASE_URLS, ProviderName
-from .scan import Debug, ScanRequest, ScanResponse, ScanResult, Sensitivity, Usage
+from .common import (
+    LockLLMConfig,
+    ProxyAbuseDetected,
+    ProxyOptions,
+    ProxyPIIDetected,
+    ProxyPolicyWarnings,
+    ProxyResponseMetadata,
+    ProxyRoutingMetadata,
+    ProxyScanWarning,
+    RequestOptions,
+)
+from .providers import (
+    PROVIDER_BASE_URLS,
+    UNIVERSAL_PROXY_URL,
+    ComplexityTier,
+    ProviderName,
+    TaskType,
+)
+from .scan import (
+    AbuseWarning,
+    Debug,
+    PIIAction,
+    PIIResult,
+    PolicyViolation,
+    RouteAction,
+    RoutingInfo,
+    ScanAction,
+    ScanMode,
+    ScanOptions,
+    ScanRequest,
+    ScanResponse,
+    ScanResult,
+    ScanWarning,
+    Sensitivity,
+    Usage,
+    ViolatedCategory,
+)
 
 __all__ = [
+    # Common
     "LockLLMConfig",
     "RequestOptions",
+    "ProxyOptions",
+    "ProxyResponseMetadata",
+    "ProxyScanWarning",
+    "ProxyPolicyWarnings",
+    "ProxyAbuseDetected",
+    "ProxyPIIDetected",
+    "ProxyRoutingMetadata",
+    # Providers
     "ProviderName",
     "PROVIDER_BASE_URLS",
+    "UNIVERSAL_PROXY_URL",
+    "TaskType",
+    "ComplexityTier",
+    # Scan
     "ScanRequest",
     "ScanResponse",
     "ScanResult",
+    "ScanOptions",
+    "ScanMode",
+    "ScanAction",
+    "RouteAction",
+    "PIIAction",
+    "PIIResult",
+    "PolicyViolation",
+    "ViolatedCategory",
+    "ScanWarning",
+    "AbuseWarning",
+    "RoutingInfo",
     "Usage",
     "Debug",
     "Sensitivity",

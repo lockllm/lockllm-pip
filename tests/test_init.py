@@ -9,7 +9,7 @@ class TestPackageInit:
     def test_version(self):
         """Test that version is defined."""
         assert hasattr(lockllm, "__version__")
-        assert lockllm.__version__ == "1.1.1"
+        assert lockllm.__version__ == "1.2.0"
 
     def test_main_clients_importable(self):
         """Test that main clients are importable."""

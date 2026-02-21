@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from ..errors import ConfigurationError
 from ..types.common import ProxyOptions
+from ..types.providers import UNIVERSAL_PROXY_URL
 from ..utils import build_lockllm_headers, get_proxy_url
 
 
@@ -48,6 +49,174 @@ def _create_openai_compatible(
     proxy_url = base_url or get_proxy_url(provider)  # type: ignore
 
     return client_class(api_key=api_key, base_url=proxy_url, **kwargs)
+
+
+# Universal proxy (non-BYOK, uses LockLLM credits)
+def create_client(
+    api_key: str,
+    base_url: Optional[str] = None,
+    proxy_options: Optional[ProxyOptions] = None,
+    **kwargs: Any,
+) -> Any:
+    """Create a client for LockLLM's universal proxy (synchronous).
+
+    Uses LockLLM credits and supports 200+ models. No BYOK
+    API key configuration required.
+
+    Args:
+        api_key: Your LockLLM API key
+        base_url: Custom proxy URL
+            (default: https://api.lockllm.com/v1/proxy)
+        proxy_options: LockLLM proxy configuration (scan mode,
+            actions, routing, caching)
+        **kwargs: Additional OpenAI client options
+
+    Returns:
+        OpenAI client configured to use LockLLM universal proxy
+
+    Raises:
+        ConfigurationError: If OpenAI SDK is not installed
+
+    Example:
+        >>> from lockllm import create_client, ProxyOptions
+        >>> client = create_client(
+        ...     api_key="...",
+        ...     proxy_options=ProxyOptions(scan_action="block")
+        ... )
+        >>> response = client.chat.completions.create(
+        ...     model="openai/gpt-4",
+        ...     messages=[{"role": "user", "content": "Hello!"}]
+        ... )
+    """
+    return _create_openai_compatible(
+        "openai",
+        api_key,
+        base_url or UNIVERSAL_PROXY_URL,
+        False,
+        proxy_options,
+        **kwargs,
+    )
+
+
+def create_async_client(
+    api_key: str,
+    base_url: Optional[str] = None,
+    proxy_options: Optional[ProxyOptions] = None,
+    **kwargs: Any,
+) -> Any:
+    """Create an async client for LockLLM's universal proxy.
+
+    Uses LockLLM credits and supports 200+ models. No BYOK
+    API key configuration required.
+
+    Args:
+        api_key: Your LockLLM API key
+        base_url: Custom proxy URL
+            (default: https://api.lockllm.com/v1/proxy)
+        proxy_options: LockLLM proxy configuration (scan mode,
+            actions, routing, caching)
+        **kwargs: Additional OpenAI client options
+
+    Returns:
+        AsyncOpenAI client configured to use LockLLM universal proxy
+
+    Raises:
+        ConfigurationError: If OpenAI SDK is not installed
+
+    Example:
+        >>> from lockllm import create_async_client, ProxyOptions
+        >>> async def main():
+        ...     client = create_async_client(
+        ...         api_key="...",
+        ...         proxy_options=ProxyOptions(scan_action="block")
+        ...     )
+        ...     response = await client.chat.completions.create(
+        ...         model="openai/gpt-4",
+        ...         messages=[{"role": "user", "content": "Hello!"}]
+        ...     )
+    """
+    return _create_openai_compatible(
+        "openai",
+        api_key,
+        base_url or UNIVERSAL_PROXY_URL,
+        True,
+        proxy_options,
+        **kwargs,
+    )
+
+
+# Custom OpenAI-compatible endpoint
+def create_openai_compatible(
+    api_key: str,
+    base_url: str,
+    proxy_options: Optional[ProxyOptions] = None,
+    **kwargs: Any,
+) -> Any:
+    """Create a client for any custom OpenAI-compatible endpoint (synchronous).
+
+    Use this for custom provider endpoints that follow the OpenAI API
+    format but aren't one of the 17 built-in providers.
+
+    Args:
+        api_key: Your LockLLM API key
+        base_url: Full proxy URL for the custom endpoint (required)
+        proxy_options: LockLLM proxy configuration (scan mode,
+            actions, routing, caching)
+        **kwargs: Additional OpenAI client options
+
+    Returns:
+        OpenAI client configured to use the custom endpoint
+
+    Raises:
+        ConfigurationError: If OpenAI SDK is not installed
+
+    Example:
+        >>> from lockllm import create_openai_compatible
+        >>> client = create_openai_compatible(
+        ...     api_key="...",
+        ...     base_url="https://api.lockllm.com/v1/proxy/custom"
+        ... )
+    """
+    return _create_openai_compatible(
+        "openai", api_key, base_url, False, proxy_options, **kwargs
+    )
+
+
+def create_async_openai_compatible(
+    api_key: str,
+    base_url: str,
+    proxy_options: Optional[ProxyOptions] = None,
+    **kwargs: Any,
+) -> Any:
+    """Create an async client for any custom OpenAI-compatible endpoint.
+
+    Use this for custom provider endpoints that follow the OpenAI API
+    format but aren't one of the 17 built-in providers.
+
+    Args:
+        api_key: Your LockLLM API key
+        base_url: Full proxy URL for the custom endpoint (required)
+        proxy_options: LockLLM proxy configuration (scan mode,
+            actions, routing, caching)
+        **kwargs: Additional OpenAI client options
+
+    Returns:
+        AsyncOpenAI client configured to use the custom endpoint
+
+    Raises:
+        ConfigurationError: If OpenAI SDK is not installed
+
+    Example:
+        >>> from lockllm import create_async_openai_compatible
+        >>> async def main():
+        ...     client = create_async_openai_compatible(
+        ...         api_key="...",
+        ...         base_url="https://api.lockllm.com/v1/proxy/custom"
+        ...     )
+    """
+    return _create_openai_compatible(
+        "openai", api_key, base_url, True, proxy_options, **kwargs
+    )
 
 
 # Groq

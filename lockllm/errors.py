@@ -159,6 +159,35 @@ class AbuseDetectedError(LockLLMError):
         self.abuse_details = abuse_details or {}
 
 
+class PIIDetectedError(LockLLMError):
+    """Raised when PII is detected and action is block (403).
+
+    This error indicates that personally identifiable information
+    was found in the input and the PII action was set to "block".
+
+    Attributes:
+        entity_types: List of PII entity types detected
+        entity_count: Number of PII entities found
+    """
+
+    def __init__(
+        self,
+        message: str,
+        entity_types: Optional[List[str]] = None,
+        entity_count: Optional[int] = None,
+        request_id: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            message=message,
+            error_type="lockllm_pii_error",
+            code="pii_detected",
+            status=403,
+            request_id=request_id,
+        )
+        self.entity_types = entity_types or []
+        self.entity_count = entity_count or 0
+
+
 class InsufficientCreditsError(LockLLMError):
     """Raised when user has insufficient credits (402).
 
@@ -310,10 +339,23 @@ def parse_error(
             request_id=error.get("request_id", request_id),
         )
 
+    # PII detected error
+    if code == "pii_detected":
+        pii_details = error.get("pii_details", {})
+        return PIIDetectedError(
+            message=message,
+            entity_types=pii_details.get("entity_types", []),
+            entity_count=pii_details.get("entity_count", 0),
+            request_id=error.get("request_id", request_id),
+        )
+
     # Insufficient credits error
     insufficient_codes = (
-        "insufficient_credits", "no_balance",
-        "insufficient_routing_credits", "balance_check_failed",
+        "insufficient_credits",
+        "no_balance",
+        "insufficient_routing_credits",
+        "balance_check_failed",
+        "credits_unavailable",
     )
     if code in insufficient_codes or error_type == "lockllm_balance_error":
         return InsufficientCreditsError(
@@ -338,7 +380,8 @@ def parse_error(
     # Configuration error
     config_types = ("configuration_error", "lockllm_config_error")
     config_codes = (
-        "no_upstream_key", "no_byok_key",
+        "no_upstream_key",
+        "no_byok_key",
         "invalid_provider_for_credits_mode",
     )
     if error_type in config_types or code in config_codes:

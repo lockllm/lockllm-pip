@@ -184,6 +184,40 @@ class TestAbuseDetectedError:
         assert error.abuse_details["confidence"] == 95
 
 
+class TestPIIDetectedError:
+    """Tests for PIIDetectedError."""
+
+    def test_pii_detected_error_basic(self):
+        """Test basic PII detected error creation."""
+        from lockllm.errors import PIIDetectedError
+
+        error = PIIDetectedError(
+            "PII detected in input", request_id="req_123"
+        )
+
+        assert error.message == "PII detected in input"
+        assert error.type == "lockllm_pii_error"
+        assert error.code == "pii_detected"
+        assert error.status == 403
+        assert error.entity_types == []
+        assert error.entity_count == 0
+        assert error.request_id == "req_123"
+
+    def test_pii_detected_error_with_details(self):
+        """Test PII detected error with entity details."""
+        from lockllm.errors import PIIDetectedError
+
+        error = PIIDetectedError(
+            "PII detected",
+            entity_types=["email", "phone", "ssn"],
+            entity_count=5,
+            request_id="req_456",
+        )
+
+        assert error.entity_types == ["email", "phone", "ssn"]
+        assert error.entity_count == 5
+
+
 class TestInsufficientCreditsError:
     """Tests for InsufficientCreditsError."""
 
@@ -592,3 +626,46 @@ class TestParseError:
 
         error = parse_error(response)
         assert error.message == "An error occurred"
+
+    def test_parse_pii_detected_error(self):
+        """Test parsing PII detected error."""
+        from lockllm.errors import PIIDetectedError
+
+        response = {
+            "error": {
+                "message": "PII detected in input",
+                "type": "lockllm_pii_error",
+                "code": "pii_detected",
+                "request_id": "req_pii",
+                "pii_details": {
+                    "entity_types": ["email", "phone"],
+                    "entity_count": 3,
+                },
+            }
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, PIIDetectedError)
+        assert error.message == "PII detected in input"
+        assert error.request_id == "req_pii"
+        assert error.entity_types == ["email", "phone"]
+        assert error.entity_count == 3
+
+    def test_parse_pii_detected_error_empty_details(self):
+        """Test parsing PII detected error with empty pii_details."""
+        from lockllm.errors import PIIDetectedError
+
+        response = {
+            "error": {
+                "message": "PII found",
+                "type": "lockllm_pii_error",
+                "code": "pii_detected",
+            }
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, PIIDetectedError)
+        assert error.entity_types == []
+        assert error.entity_count == 0

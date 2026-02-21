@@ -53,6 +53,7 @@ class TestAsyncLockLLM:
             scan_action=None,
             policy_action=None,
             abuse_action=None,
+            pii_action=None,
             chunk=None,
             scan_options=None,
         )

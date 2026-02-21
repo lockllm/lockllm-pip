@@ -6,6 +6,7 @@ from .generic_wrapper import (
     create_async_anyscale,
     create_async_azure,
     create_async_bedrock,
+    create_async_client,
     create_async_cohere,
     create_async_deepseek,
     create_async_fireworks,
@@ -13,6 +14,7 @@ from .generic_wrapper import (
     create_async_groq,
     create_async_huggingface,
     create_async_mistral,
+    create_async_openai_compatible,
     create_async_openrouter,
     create_async_perplexity,
     create_async_together,
@@ -20,6 +22,7 @@ from .generic_wrapper import (
     create_async_xai,
     create_azure,
     create_bedrock,
+    create_client,
     create_cohere,
     create_deepseek,
     create_fireworks,
@@ -27,6 +30,7 @@ from .generic_wrapper import (
     create_groq,
     create_huggingface,
     create_mistral,
+    create_openai_compatible,
     create_openrouter,
     create_perplexity,
     create_together,
@@ -36,6 +40,11 @@ from .generic_wrapper import (
 from .openai_wrapper import create_async_openai, create_openai
 
 __all__ = [
+    # Generic / Universal proxy
+    "create_client",
+    "create_async_client",
+    "create_openai_compatible",
+    "create_async_openai_compatible",
     # OpenAI
     "create_openai",
     "create_async_openai",

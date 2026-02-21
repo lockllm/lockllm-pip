@@ -6,7 +6,14 @@ from .async_http_client import AsyncHttpClient
 from .async_scan import AsyncScanClient
 from .errors import ConfigurationError
 from .types.common import LockLLMConfig
-from .types.scan import ScanAction, ScanMode, ScanOptions, ScanResponse, Sensitivity
+from .types.scan import (
+    PIIAction,
+    ScanAction,
+    ScanMode,
+    ScanOptions,
+    ScanResponse,
+    Sensitivity,
+)
 
 DEFAULT_BASE_URL = "https://api.lockllm.com"
 DEFAULT_TIMEOUT = 60.0
@@ -89,6 +96,7 @@ class AsyncLockLLM:
         scan_action: Optional[ScanAction] = None,
         policy_action: Optional[ScanAction] = None,
         abuse_action: Optional[ScanAction] = None,
+        pii_action: Optional[PIIAction] = None,
         chunk: Optional[bool] = None,
         scan_options: Optional[ScanOptions] = None,
         **options: Any,
@@ -120,6 +128,11 @@ class AsyncLockLLM:
                 - None: Disabled (default)
                 - "block": Block the request
                 - "allow_with_warning": Allow with warning
+            pii_action: PII detection behavior (opt-in)
+                - None: Disabled (default)
+                - "strip": Strip PII entities from the prompt
+                - "block": Block the request
+                - "allow_with_warning": Allow with PII info in response
             chunk: Whether to enable chunking for long prompts
                 - None: Use server default
                 - True: Enable chunking
@@ -139,6 +152,7 @@ class AsyncLockLLM:
             PromptInjectionError: If scan_action is "block" and injection detected
             PolicyViolationError: If policy_action is "block" and violation found
             AbuseDetectedError: If abuse_action is "block" and abuse detected
+            PIIDetectedError: If pii_action is "block" and PII detected
             InsufficientCreditsError: If credit balance is too low
 
         Example:
@@ -163,6 +177,7 @@ class AsyncLockLLM:
             scan_action=scan_action,
             policy_action=policy_action,
             abuse_action=abuse_action,
+            pii_action=pii_action,
             chunk=chunk,
             scan_options=scan_options,
             **options,

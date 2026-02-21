@@ -15,6 +15,9 @@ ScanAction = Literal["block", "allow_with_warning"]
 # Route action type
 RouteAction = Literal["disabled", "auto", "custom"]
 
+# PII action type
+PIIAction = Literal["strip", "block", "allow_with_warning"]
+
 
 @dataclass
 class ScanRequest:
@@ -58,6 +61,11 @@ class ScanOptions:
             - None: Use server default
             - True: Enable chunking
             - False: Disable chunking
+        pii_action: PII detection behavior (opt-in)
+            - None: PII detection disabled (default)
+            - "strip": Strip PII entities from the prompt
+            - "block": Block the request (raises PIIDetectedError)
+            - "allow_with_warning": Allow with PII info in response
     """
 
     scan_mode: Optional[ScanMode] = None
@@ -65,6 +73,24 @@ class ScanOptions:
     policy_action: Optional[ScanAction] = None
     abuse_action: Optional[ScanAction] = None
     chunk: Optional[bool] = None
+    pii_action: Optional["PIIAction"] = None
+
+
+@dataclass
+class PIIResult:
+    """PII detection result from scan.
+
+    Attributes:
+        detected: Whether PII was detected
+        entity_types: Types of PII entities found (user-friendly names)
+        entity_count: Number of PII entities found
+        redacted_input: Redacted input text (only present when pii_action is "strip")
+    """
+
+    detected: bool
+    entity_types: List[str]
+    entity_count: int
+    redacted_input: Optional[str] = None
 
 
 @dataclass
@@ -217,6 +243,8 @@ class ScanResponse(ScanResult):
             (when abuse detection is enabled)
         routing: Intelligent routing metadata
             (when routing is enabled)
+        pii_result: PII detection result
+            (when PII detection is enabled)
     """
 
     request_id: str = ""
@@ -227,3 +255,4 @@ class ScanResponse(ScanResult):
     scan_warning: Optional[ScanWarning] = None
     abuse_warnings: Optional[AbuseWarning] = None
     routing: Optional[RoutingInfo] = None
+    pii_result: Optional[PIIResult] = None
