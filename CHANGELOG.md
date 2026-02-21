@@ -5,6 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-21
+
+### Added
+
+#### PII Detection and Redaction
+Protect sensitive personal information in prompts before they reach AI providers. When enabled, LockLLM detects emails, phone numbers, SSNs, credit card numbers, and other PII entities. Choose how to handle detected PII with the `pii_action` option:
+
+- **`block`** - Reject requests containing PII entirely. Raises a `PIIDetectedError` with entity types and count.
+- **`strip`** - Automatically redact PII from prompts before forwarding to the AI provider. The redacted text is available via `redacted_input` in the scan response.
+- **`allow_with_warning`** - Allow requests through but include PII metadata in the response for logging.
+
+PII detection is opt-in and disabled by default.
+
+```python
+from lockllm import create_openai, ProxyOptions, PIIDetectedError
+
+# Strip PII automatically before sending to AI
+openai = create_openai(
+    api_key="your-lockllm-key",
+    proxy_options=ProxyOptions(pii_action="strip")
+)
+
+# Or block requests containing PII
+try:
+    openai.chat.completions.create(...)
+except PIIDetectedError as e:
+    print(e.entity_types)   # ['email', 'phone_number']
+    print(e.entity_count)   # 3
+```
+
+#### Scan API PII Support
+The scan endpoint now accepts a `pii_action` option alongside existing scan options:
+
+```python
+result = lockllm.scan(
+    input="My email is test@example.com",
+    pii_action="block",
+    scan_action="block",
+)
+
+if result.pii_result:
+    print(result.pii_result.detected)        # True
+    print(result.pii_result.entity_types)     # ['email']
+    print(result.pii_result.entity_count)     # 1
+    print(result.pii_result.redacted_input)   # 'My email is [EMAIL]' (strip mode only)
+```
+
+#### Universal Proxy Client
+Access 200+ models through LockLLM's universal proxy without configuring individual provider API keys. Uses LockLLM credits for billing - no BYOK setup required.
+
+```python
+from lockllm import create_client, ProxyOptions
+
+client = create_client(
+    api_key="your-lockllm-key",
+    proxy_options=ProxyOptions(scan_action="block")
+)
+
+response = client.chat.completions.create(
+    model="openai/gpt-4",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+Both sync (`create_client`) and async (`create_async_client`) variants are available.
+
+#### Custom OpenAI-Compatible Endpoints
+Connect to any custom endpoint that follows the OpenAI API format but isn't one of the 17+ built-in providers. Useful for self-hosted models or niche providers.
+
+```python
+from lockllm import create_openai_compatible
+
+client = create_openai_compatible(
+    api_key="your-lockllm-key",
+    base_url="https://api.lockllm.com/v1/proxy/custom"
+)
+```
+
+Both sync (`create_openai_compatible`) and async (`create_async_openai_compatible`) variants are available.
+
+#### Enhanced Proxy Response Metadata
+Proxy responses now include additional fields for better observability:
+
+- **PII detection metadata** - `pii_detected` object with detection status, entity types, count, and action taken
+- **Sensitivity and label** - `sensitivity` level used and numeric `label` (0 = safe, 1 = unsafe)
+- **Decoded detail fields** - `scan_detail`, `policy_detail`, and `abuse_detail` automatically decoded from base64 response headers
+- **Extended routing metadata** - `estimated_original_cost`, `estimated_routed_cost`, `estimated_input_tokens`, `estimated_output_tokens`, and `routing_fee_reason`
+
+### Notes
+- PII detection is opt-in. Existing integrations continue to work without any changes.
+- All new types (`PIIAction`, `PIIResult`, `PIIDetectedError`, `ProxyPIIDetected`) are fully exported for type checking.
+
+---
+
 ## [1.1.0] - 2026-02-18
 
 ### Added
