@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lockllm"
-version = "1.1.1"
+version = "1.2.0"
 description = "Enterprise-grade AI security SDK with prompt injection detection for Python"
 readme = "README.md"
 requires-python = ">=3.8"

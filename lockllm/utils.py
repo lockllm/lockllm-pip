@@ -241,6 +241,11 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
         model=get_header("x-lockllm-model"),
     )
 
+    # Parse sensitivity
+    sensitivity = get_header("x-lockllm-sensitivity")
+    if sensitivity:
+        metadata.sensitivity = sensitivity
+
     # Parse label
     label = get_header("x-lockllm-label")
     if label is not None:
@@ -268,6 +273,8 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
             confidence=float(confidence) if confidence else 0,
             detail=detail or "",
         )
+        if detail:
+            metadata.scan_detail = decode_detail_field(detail)
 
     # Parse policy warnings
     if get_header("x-lockllm-policy-warnings") == "true":
@@ -279,6 +286,8 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
             confidence=float(confidence) if confidence else 0,
             detail=detail or "",
         )
+        if detail:
+            metadata.policy_detail = decode_detail_field(detail)
 
     # Parse abuse detection
     if get_header("x-lockllm-abuse-detected") == "true":
@@ -290,6 +299,8 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
             types=types or "",
             detail=detail or "",
         )
+        if detail:
+            metadata.abuse_detail = decode_detail_field(detail)
 
     # Parse PII detection
     pii_detected_val = get_header("x-lockllm-pii-detected")
@@ -313,6 +324,11 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
         original_provider = get_header("x-lockllm-original-provider")
         original_model = get_header("x-lockllm-original-model")
         estimated_savings = get_header("x-lockllm-estimated-savings")
+        estimated_original_cost = get_header("x-lockllm-estimated-original-cost")
+        estimated_routed_cost = get_header("x-lockllm-estimated-routed-cost")
+        estimated_input_tokens = get_header("x-lockllm-estimated-input-tokens")
+        estimated_output_tokens = get_header("x-lockllm-estimated-output-tokens")
+        routing_fee_reason = get_header("x-lockllm-routing-fee-reason")
         metadata.routing = ProxyRoutingMetadata(
             enabled=True,
             task_type=task_type or "",
@@ -322,6 +338,19 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
             original_provider=original_provider or "",
             original_model=original_model or "",
             estimated_savings=float(estimated_savings) if estimated_savings else 0,
+            estimated_original_cost=(
+                float(estimated_original_cost) if estimated_original_cost else None
+            ),
+            estimated_routed_cost=(
+                float(estimated_routed_cost) if estimated_routed_cost else None
+            ),
+            estimated_input_tokens=(
+                int(estimated_input_tokens) if estimated_input_tokens else None
+            ),
+            estimated_output_tokens=(
+                int(estimated_output_tokens) if estimated_output_tokens else None
+            ),
+            routing_fee_reason=routing_fee_reason,
         )
 
     # Parse credit tracking

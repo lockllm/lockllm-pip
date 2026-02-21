@@ -1,7 +1,7 @@
 """Common type definitions."""
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -172,6 +172,11 @@ class ProxyRoutingMetadata:
         original_provider: Original provider requested
         original_model: Original model requested
         estimated_savings: Estimated cost savings
+        estimated_original_cost: Estimated cost with original model
+        estimated_routed_cost: Estimated cost with routed model
+        estimated_input_tokens: Estimated input tokens for routing
+        estimated_output_tokens: Estimated output tokens for routing
+        routing_fee_reason: Reason for routing fee or waiver
     """
 
     enabled: bool
@@ -182,6 +187,11 @@ class ProxyRoutingMetadata:
     original_provider: str
     original_model: str
     estimated_savings: float
+    estimated_original_cost: Optional[float] = None
+    estimated_routed_cost: Optional[float] = None
+    estimated_input_tokens: Optional[int] = None
+    estimated_output_tokens: Optional[int] = None
+    routing_fee_reason: Optional[str] = None
 
 
 @dataclass
@@ -199,6 +209,7 @@ class ProxyResponseMetadata:
         credits_mode: Credit mode (lockllm_credits or byok)
         provider: AI provider name
         model: Model identifier (if available)
+        sensitivity: Detection sensitivity level used
         label: Binary classification (0=safe, 1=unsafe)
         policy_confidence: Policy check confidence (0-100)
         scan_warning: Scan warning details (if detected)
@@ -220,6 +231,9 @@ class ProxyResponseMetadata:
         cache_age: Age of cached response in seconds
         tokens_saved: Number of tokens saved by cache hit
         cost_saved: Cost saved by cache hit
+        scan_detail: Decoded scan detail from base64 header
+        policy_detail: Decoded policy warning detail from base64 header
+        abuse_detail: Decoded abuse detail from base64 header
     """
 
     request_id: str
@@ -229,6 +243,7 @@ class ProxyResponseMetadata:
     credits_mode: str
     provider: str
     model: Optional[str] = None
+    sensitivity: Optional[str] = None
     label: Optional[int] = None
     policy_confidence: Optional[float] = None
     scan_warning: Optional[ProxyScanWarning] = None
@@ -250,3 +265,6 @@ class ProxyResponseMetadata:
     cache_age: Optional[int] = None
     tokens_saved: Optional[int] = None
     cost_saved: Optional[float] = None
+    scan_detail: Optional[Any] = None
+    policy_detail: Optional[Any] = None
+    abuse_detail: Optional[Any] = None
