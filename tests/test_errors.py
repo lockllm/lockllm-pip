@@ -627,6 +627,35 @@ class TestParseError:
         error = parse_error(response)
         assert error.message == "An error occurred"
 
+    def test_parse_flat_error_string_format(self):
+        """Test parsing flat error format where error is a string code."""
+        response = {
+            "error": "bad_request",
+            "message": "Invalid input provided",
+            "request_id": "req_flat",
+        }
+
+        error = parse_error(response, request_id="req_fallback")
+
+        assert isinstance(error, LockLLMError)
+        assert error.message == "Invalid input provided"
+        assert error.type == "bad_request"
+        assert error.code == "bad_request"
+        assert error.request_id == "req_flat"
+
+    def test_parse_flat_error_string_without_message(self):
+        """Test parsing flat error format without explicit message."""
+        response = {
+            "error": "some_error_code",
+        }
+
+        error = parse_error(response)
+
+        assert isinstance(error, LockLLMError)
+        assert error.message == "some_error_code"
+        assert error.type == "some_error_code"
+        assert error.code == "some_error_code"
+
     def test_parse_pii_detected_error(self):
         """Test parsing PII detected error."""
         from lockllm.errors import PIIDetectedError

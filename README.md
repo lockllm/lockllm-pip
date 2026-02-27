@@ -84,6 +84,7 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 | **AI Abuse Detection** | Detect bot-generated content, repetition attacks, and resource exhaustion from your end-users |
 | **Intelligent Routing** | Automatically select the optimal model for each request based on task type and complexity to save costs |
 | **PII Detection & Redaction** | Detect and automatically redact emails, phone numbers, SSNs, credit cards, and other PII before prompts reach AI providers |
+| **Prompt Compression** | Reduce token usage with TOON (free JSON-to-compact notation), Compact (ML-based compression), or Combined (TOON then Compact for maximum compression) to save costs on every request |
 | **Response Caching** | Cache identical LLM responses to reduce costs and latency on repeated queries |
 | **Enterprise Privacy** | Provider keys encrypted at rest, prompts never stored |
 | **Production Ready** | Battle-tested with automatic retries, timeouts, and error handling |
@@ -453,6 +454,57 @@ except LockLLMError as error:
     print(f"LockLLM error: {error.message}")
 ```
 
+### Prompt Compression
+
+Reduce token usage and save costs by compressing prompts before sending them to AI providers:
+
+```python
+from lockllm import LockLLM
+
+lockllm = LockLLM(api_key=os.getenv("LOCKLLM_API_KEY"))
+
+# TOON compression (free) - best for JSON content
+result = lockllm.scan(
+    input='{"name": "John", "age": 30, "city": "New York"}',
+    compression="toon",
+)
+
+if result.compression_result:
+    print(f"Method: {result.compression_result.method}")
+    print(f"Compressed: {result.compression_result.compressed_input}")
+    print(f"Ratio: {result.compression_result.compression_ratio}")
+    # Original: 48 chars -> Compressed: 31 chars (0.65 ratio)
+
+# Compact compression (ML-based) - works on any text
+result = lockllm.scan(
+    input="A very long prompt that needs compression...",
+    compression="compact",
+    compression_rate=0.4,  # More aggressive (0.3-0.7, default 0.5)
+)
+```
+
+**Via proxy wrappers:**
+
+```python
+from lockllm import create_openai, ProxyOptions
+
+openai = create_openai(
+    api_key=os.getenv("LOCKLLM_API_KEY"),
+    proxy_options=ProxyOptions(compression="toon")
+)
+
+# All requests will have prompts compressed before forwarding
+response = openai.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "user", "content": user_input}]
+)
+```
+
+**Compression methods:**
+- **`toon`** - Free JSON-to-compact notation (lossless, JSON only)
+- **`compact`** - ML-based compression ($0.0001/use, any text format)
+- **`combined`** - TOON first, then ML-based compression ($0.0001/use, maximum compression)
+
 ### Context Manager Usage
 
 ```python
@@ -649,6 +701,8 @@ lockllm.scan(
     policy_action: Optional[ScanAction] = None,
     abuse_action: Optional[ScanAction] = None,
     pii_action: Optional[PIIAction] = None,
+    compression: Optional[CompressionAction] = None,
+    compression_rate: Optional[float] = None,
     chunk: Optional[bool] = None,
     scan_options: Optional[ScanOptions] = None,
     **options
@@ -663,6 +717,8 @@ lockllm.scan(
 - `policy_action` (optional): Policy check behavior - `"block"` or `"allow_with_warning"`
 - `abuse_action` (optional): Abuse detection (opt-in) - `"block"` or `"allow_with_warning"`
 - `pii_action` (optional): PII detection (opt-in) - `"strip"` (redact PII), `"block"`, or `"allow_with_warning"`
+- `compression` (optional): Prompt compression (opt-in) - `"toon"` (JSON-to-compact notation, free), `"compact"` (ML-based, $0.0001/use), or `"combined"` (TOON then ML-based, $0.0001/use, maximum compression)
+- `compression_rate` (optional): Compression rate for compact/combined methods (0.3-0.7, default 0.5). Lower values compress more aggressively
 - `chunk` (optional): Enable chunking for long prompts
 - `scan_options` (optional): Reusable `ScanOptions` dataclass (alternative to individual parameters)
 - `**options`: Additional options (headers, timeout)
@@ -694,6 +750,7 @@ class ScanResponse:
     abuse_warnings: Optional[AbuseWarning]      # Abuse detection results
     routing: Optional[RoutingInfo]              # Intelligent routing metadata
     pii_result: Optional[PIIResult]             # PII detection results (when PII detection enabled)
+    compression_result: Optional[CompressionResult]  # Compression results (when compression enabled)
 ```
 
 ### Wrapper Functions
@@ -724,6 +781,7 @@ openai = create_openai(
         cache_response=True,
         cache_ttl=3600,
         pii_action="strip",
+        compression="toon",
     )
 )
 ```
@@ -792,6 +850,7 @@ print(metadata.safe)            # True/False
 print(metadata.scan_mode)       # 'combined'
 print(metadata.routing)         # RoutingMetadata or None
 print(metadata.pii_detected)    # ProxyPIIDetected or None
+print(metadata.compression)     # ProxyCompressionMetadata or None
 print(metadata.cache_status)    # 'HIT' or 'MISS'
 print(metadata.credits_deducted)  # Amount deducted
 ```
@@ -878,10 +937,10 @@ LockLLM uses a 10-tier progressive system where rate limits increase with your u
 
 | Tier | Requests per Minute | Best For |
 |------|---------------------|----------|
-| **Tier 1 (Free)** | 30 RPM | Getting started, testing, side projects |
-| **Tier 2-4** | 50-200 RPM | Light to active usage |
-| **Tier 5-7** | 500-2,000 RPM | Professional and business applications |
-| **Tier 8-10** | 5,000-20,000 RPM | High-traffic and enterprise deployments |
+| **Tier 1 (Free)** | 300 RPM | Getting started, testing, side projects |
+| **Tier 2-4** | 500-2,000 RPM | Light to active usage |
+| **Tier 5-7** | 5,000-20,000 RPM | Professional and business applications |
+| **Tier 8-10** | 50,000-200,000 RPM | High-traffic and enterprise deployments |
 
 **Smart Rate Limit Handling:**
 

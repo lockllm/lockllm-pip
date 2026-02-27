@@ -230,6 +230,17 @@ class TestBuildScanHeaders:
         headers = _build_scan_headers(pii_action="strip")
         assert headers["X-LockLLM-PII-Action"] == "strip"
 
+    def test_compression_header(self):
+        """Test building headers with compression."""
+        headers = _build_scan_headers(compression="toon")
+        assert headers["X-LockLLM-Compression"] == "toon"
+
+    def test_compression_compact_with_rate(self):
+        """Test building headers with compression=compact and rate."""
+        headers = _build_scan_headers(compression="compact", compression_rate=0.4)
+        assert headers["X-LockLLM-Compression"] == "compact"
+        assert headers["X-LockLLM-Compression-Rate"] == "0.4"
+
 
 class TestParseScanResponse:
     """Tests for _parse_scan_response."""
@@ -469,3 +480,44 @@ class TestParseScanResponse:
         result = _parse_scan_response(data, "req_123")
 
         assert result.pii_result is None
+
+    def test_parse_response_with_compression_result(self):
+        """Test parsing response with compression result."""
+        data = {
+            "safe": True,
+            "label": 0,
+            "confidence": 95.0,
+            "injection": 2.0,
+            "sensitivity": "medium",
+            "usage": {"requests": 1, "input_chars": 100},
+            "compression_result": {
+                "method": "toon",
+                "compressed_input": "{name:John}",
+                "original_length": 100,
+                "compressed_length": 40,
+                "compression_ratio": 0.4,
+            },
+        }
+        result = _parse_scan_response(data, "req_compress")
+
+        assert result.compression_result is not None
+        assert result.compression_result.method == "toon"
+        assert result.compression_result.compressed_input == "{name:John}"
+        assert result.compression_result.original_length == 100
+        assert result.compression_result.compressed_length == 40
+        assert result.compression_result.compression_ratio == 0.4
+
+    def test_parse_response_with_empty_compression_result(self):
+        """Test parsing response with empty compression_result dict."""
+        data = {
+            "safe": True,
+            "label": 0,
+            "confidence": 95.0,
+            "injection": 2.0,
+            "sensitivity": "medium",
+            "usage": {"requests": 1, "input_chars": 25},
+            "compression_result": {},
+        }
+        result = _parse_scan_response(data, "req_123")
+
+        assert result.compression_result is None

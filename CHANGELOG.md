@@ -5,6 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-27
+
+### Added
+
+#### Prompt Compression
+Reduce token usage and save costs by compressing prompts before sending them to AI providers. Two compression methods are available:
+
+- **`toon`** (Free) - JSON-to-compact notation. Converts structured JSON content into a compressed shorthand format. Lossless and completely free.
+- **`compact`** (Charged) - ML-based compression. Works on any text format with configurable compression rate. Costs $0.0001 per use.
+- **`combined`** (Charged) - TOON first, then ML-based compression on the output. Maximum compression. Costs $0.0001 per use.
+
+Configure compression rate for the `compact` and `combined` methods with `compression_rate` (0.3-0.7, default 0.5). Lower values compress more aggressively.
+
+```python
+from lockllm import LockLLM
+
+lockllm = LockLLM(api_key="your-lockllm-key")
+
+# Free JSON-to-compact compression
+result = lockllm.scan(
+    input='{"name": "John", "age": 30, "city": "NYC"}',
+    compression="toon",
+)
+
+if result.compression_result:
+    print(result.compression_result.compressed_input)
+    print(result.compression_result.compression_ratio)  # e.g. 0.65
+
+# ML-based compression with custom rate
+result = lockllm.scan(
+    input="A very long prompt that needs compression...",
+    compression="compact",
+    compression_rate=0.4,  # More aggressive compression
+)
+```
+
+#### Compression via Proxy Wrappers
+Compression is also available through all proxy wrappers via `ProxyOptions`:
+
+```python
+from lockllm import create_openai, ProxyOptions
+
+openai = create_openai(
+    api_key="your-lockllm-key",
+    proxy_options=ProxyOptions(compression="toon")
+)
+```
+
+#### Compression via ScanOptions
+Use `ScanOptions` for reusable compression configurations:
+
+```python
+from lockllm import ScanOptions
+
+opts = ScanOptions(compression="compact", compression_rate=0.5)
+result = lockllm.scan(input=user_prompt, scan_options=opts)
+```
+
+#### New Type Exports
+- `CompressionAction` - Literal type for compression methods (`"toon"` | `"compact"` | `"combined"`)
+- `CompressionResult` - Dataclass with `method`, `compressed_input`, `original_length`, `compressed_length`, `compression_ratio`
+- `ProxyCompressionMetadata` - Metadata from proxy response headers
+
+### Notes
+- Compression is opt-in. Existing integrations continue to work without any changes.
+- TOON compression is free. Compact compression costs $0.0001 per use.
+
+---
+
 ## [1.2.0] - 2026-02-21
 
 ### Added

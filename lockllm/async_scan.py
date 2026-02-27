@@ -5,6 +5,7 @@ from typing import Any, Optional
 from .async_http_client import AsyncHttpClient
 from .scan import _build_scan_headers, _parse_scan_response
 from .types.scan import (
+    CompressionAction,
     PIIAction,
     ScanAction,
     ScanMode,
@@ -47,6 +48,8 @@ class AsyncScanClient:
         policy_action: Optional[ScanAction] = None,
         abuse_action: Optional[ScanAction] = None,
         pii_action: Optional[PIIAction] = None,
+        compression: Optional[CompressionAction] = None,
+        compression_rate: Optional[float] = None,
         chunk: Optional[bool] = None,
         scan_options: Optional[ScanOptions] = None,
         **options: Any,
@@ -83,6 +86,15 @@ class AsyncScanClient:
                 - "strip": Strip PII entities from the prompt
                 - "block": Block the request
                 - "allow_with_warning": Allow with PII info in response
+            compression: Prompt compression method (opt-in)
+                - None: Disabled (default)
+                - "toon": JSON-to-compact notation (free, JSON only)
+                - "compact": ML-based compression ($0.0001/use, any text)
+                - "combined": TOON then ML-based compression
+                    ($0.0001/use, maximum compression)
+            compression_rate: Compression rate for compact/combined
+                methods (0.3-0.7, default 0.5). Lower = more aggressive.
+                Only used when compression="compact" or "combined".
             chunk: Whether to enable chunking for long prompts
                 - None: Use server default
                 - True: Enable chunking
@@ -132,6 +144,10 @@ class AsyncScanClient:
                 abuse_action = scan_options.abuse_action
             if pii_action is None:
                 pii_action = scan_options.pii_action
+            if compression is None:
+                compression = scan_options.compression
+            if compression_rate is None:
+                compression_rate = scan_options.compression_rate
             if chunk is None:
                 chunk = scan_options.chunk
 
@@ -145,6 +161,8 @@ class AsyncScanClient:
             policy_action=policy_action,
             abuse_action=abuse_action,
             pii_action=pii_action,
+            compression=compression,
+            compression_rate=compression_rate,
             sensitivity=sensitivity,
             chunk=chunk,
         )

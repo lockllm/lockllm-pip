@@ -18,6 +18,9 @@ RouteAction = Literal["disabled", "auto", "custom"]
 # PII action type
 PIIAction = Literal["strip", "block", "allow_with_warning"]
 
+# Compression action type
+CompressionAction = Literal["toon", "compact", "combined"]
+
 
 @dataclass
 class ScanRequest:
@@ -66,6 +69,16 @@ class ScanOptions:
             - "strip": Strip PII entities from the prompt
             - "block": Block the request (raises PIIDetectedError)
             - "allow_with_warning": Allow with PII info in response
+        compression: Prompt compression method (opt-in)
+            - None: Disabled (default)
+            - "toon": JSON-to-compact notation (free, JSON only)
+            - "compact": ML-based compression ($0.0001/use, any text)
+            - "combined": TOON then ML-based compression
+                ($0.0001/use, maximum compression)
+        compression_rate: Compression rate for compact/combined methods
+            - None: Use server default (0.5)
+            - Float between 0.3-0.7 (lower = more aggressive compression)
+            - Only applies to "compact" and "combined" methods
     """
 
     scan_mode: Optional[ScanMode] = None
@@ -74,6 +87,8 @@ class ScanOptions:
     abuse_action: Optional[ScanAction] = None
     chunk: Optional[bool] = None
     pii_action: Optional["PIIAction"] = None
+    compression: Optional["CompressionAction"] = None
+    compression_rate: Optional[float] = None
 
 
 @dataclass
@@ -91,6 +106,25 @@ class PIIResult:
     entity_types: List[str]
     entity_count: int
     redacted_input: Optional[str] = None
+
+
+@dataclass
+class CompressionResult:
+    """Prompt compression result from scan.
+
+    Attributes:
+        method: Compression method used ("toon", "compact", or "combined")
+        compressed_input: The compressed text
+        original_length: Original text length in characters
+        compressed_length: Compressed text length in characters
+        compression_ratio: Ratio of compressed/original (lower = better)
+    """
+
+    method: str
+    compressed_input: str
+    original_length: int
+    compressed_length: int
+    compression_ratio: float
 
 
 @dataclass
@@ -245,6 +279,8 @@ class ScanResponse(ScanResult):
             (when routing is enabled)
         pii_result: PII detection result
             (when PII detection is enabled)
+        compression_result: Prompt compression result
+            (when compression is enabled)
     """
 
     request_id: str = ""
@@ -256,3 +292,4 @@ class ScanResponse(ScanResult):
     abuse_warnings: Optional[AbuseWarning] = None
     routing: Optional[RoutingInfo] = None
     pii_result: Optional[PIIResult] = None
+    compression_result: Optional[CompressionResult] = None
