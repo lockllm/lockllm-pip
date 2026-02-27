@@ -82,7 +82,7 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 | **Custom Endpoints** | Configure custom URLs for any provider (self-hosted, Azure, private clouds) |
 | **Custom Content Policies** | Define your own content rules in the dashboard and enforce them automatically across all providers |
 | **AI Abuse Detection** | Detect bot-generated content, repetition attacks, and resource exhaustion from your end-users |
-| **Intelligent Routing** | Automatically select the optimal model for each request based on task type and complexity to save costs |
+| **Smart Routing** | Automatically select the optimal model for each request based on task type and complexity to save costs |
 | **PII Detection & Redaction** | Detect and automatically redact emails, phone numbers, SSNs, credit cards, and other PII before prompts reach AI providers |
 | **Prompt Compression** | Reduce token usage with TOON (free JSON-to-compact notation), Compact (ML-based compression), or Combined (TOON then Compact for maximum compression) to save costs on every request |
 | **Response Caching** | Cache identical LLM responses to reduce costs and latency on repeated queries |
@@ -748,7 +748,7 @@ class ScanResponse:
     policy_warnings: Optional[List[PolicyViolation]]  # Custom policy violations
     scan_warning: Optional[ScanWarning]         # Core injection warning details
     abuse_warnings: Optional[AbuseWarning]      # Abuse detection results
-    routing: Optional[RoutingInfo]              # Intelligent routing metadata
+    routing: Optional[RoutingInfo]              # Smart routing metadata
     pii_result: Optional[PIIResult]             # PII detection results (when PII detection enabled)
     compression_result: Optional[CompressionResult]  # Compression results (when compression enabled)
 ```

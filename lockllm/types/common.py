@@ -59,7 +59,7 @@ class ProxyOptions:
             - None: Abuse detection disabled (default)
             - "block": Block the request
             - "allow_with_warning": Allow with warning
-        route_action: Intelligent routing mode
+        route_action: Smart routing mode
             - "disabled": No routing, use original model (default)
             - "auto": AI-powered automatic routing
             - "custom": Use user-defined routing rules

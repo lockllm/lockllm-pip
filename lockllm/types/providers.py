@@ -47,7 +47,7 @@ PROVIDER_BASE_URLS = {
 # Universal proxy URL for non-BYOK users (uses LockLLM credits)
 UNIVERSAL_PROXY_URL = "https://api.lockllm.com/v1/proxy"
 
-# Supported task types for intelligent routing
+# Supported task types for smart routing
 TaskType = Literal[
     "Open QA",
     "Closed QA",

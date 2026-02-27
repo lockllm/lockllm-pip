@@ -246,7 +246,7 @@ openai = create_openai(
 )
 ```
 
-#### Intelligent Routing
+#### Smart Routing
 Let LockLLM automatically select the best model for each request based on task type and complexity. Set `route_action="auto"` to enable, or `route_action="custom"` to use your own routing rules from the dashboard.
 
 #### Response Caching

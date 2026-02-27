@@ -221,7 +221,7 @@ class AbuseWarning:
 
 @dataclass
 class RoutingInfo:
-    """Intelligent routing metadata.
+    """Smart routing metadata.
 
     Attributes:
         enabled: Whether routing was applied
@@ -275,7 +275,7 @@ class ScanResponse(ScanResult):
             (when action is allow_with_warning)
         abuse_warnings: Abuse detection results
             (when abuse detection is enabled)
-        routing: Intelligent routing metadata
+        routing: Smart routing metadata
             (when routing is enabled)
         pii_result: PII detection result
             (when PII detection is enabled)
