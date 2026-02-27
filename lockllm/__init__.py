@@ -72,6 +72,7 @@ from .errors import (
 from .types.common import (
     LockLLMConfig,
     ProxyAbuseDetected,
+    ProxyCompressionMetadata,
     ProxyOptions,
     ProxyPIIDetected,
     ProxyPolicyWarnings,
@@ -93,6 +94,8 @@ from .types.providers import (
 # Types - scan
 from .types.scan import (
     AbuseWarning,
+    CompressionAction,
+    CompressionResult,
     Debug,
     PIIAction,
     PIIResult,
@@ -190,6 +193,7 @@ __all__ = [
     "ProxyPolicyWarnings",
     "ProxyAbuseDetected",
     "ProxyPIIDetected",
+    "ProxyCompressionMetadata",
     "ProxyRoutingMetadata",
     # Types - providers
     "ProviderName",
@@ -198,6 +202,8 @@ __all__ = [
     "TaskType",
     "ComplexityTier",
     # Types - scan
+    "CompressionAction",
+    "CompressionResult",
     "ScanRequest",
     "ScanResponse",
     "ScanResult",

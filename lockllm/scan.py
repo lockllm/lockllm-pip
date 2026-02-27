@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 from .http_client import HttpClient
 from .types.scan import (
     AbuseWarning,
+    CompressionAction,
+    CompressionResult,
     Debug,
     PIIAction,
     PIIResult,
@@ -54,6 +56,8 @@ class ScanClient:
         policy_action: Optional[ScanAction] = None,
         abuse_action: Optional[ScanAction] = None,
         pii_action: Optional[PIIAction] = None,
+        compression: Optional[CompressionAction] = None,
+        compression_rate: Optional[float] = None,
         chunk: Optional[bool] = None,
         scan_options: Optional[ScanOptions] = None,
         **options: Any,
@@ -90,6 +94,15 @@ class ScanClient:
                 - "strip": Strip PII entities from the prompt
                 - "block": Block the request
                 - "allow_with_warning": Allow with PII info in response
+            compression: Prompt compression method (opt-in)
+                - None: Disabled (default)
+                - "toon": JSON-to-compact notation (free, JSON only)
+                - "compact": ML-based compression ($0.0001/use, any text)
+                - "combined": TOON then ML-based compression
+                    ($0.0001/use, maximum compression)
+            compression_rate: Compression rate for compact/combined
+                methods (0.3-0.7, default 0.5). Lower = more aggressive.
+                Only used when compression="compact" or "combined".
             chunk: Whether to enable chunking for long prompts
                 - None: Use server default
                 - True: Enable chunking
@@ -139,6 +152,10 @@ class ScanClient:
                 abuse_action = scan_options.abuse_action
             if pii_action is None:
                 pii_action = scan_options.pii_action
+            if compression is None:
+                compression = scan_options.compression
+            if compression_rate is None:
+                compression_rate = scan_options.compression_rate
             if chunk is None:
                 chunk = scan_options.chunk
 
@@ -152,6 +169,8 @@ class ScanClient:
             policy_action=policy_action,
             abuse_action=abuse_action,
             pii_action=pii_action,
+            compression=compression,
+            compression_rate=compression_rate,
             sensitivity=sensitivity,
             chunk=chunk,
         )
@@ -180,6 +199,8 @@ def _build_scan_headers(
     policy_action: Optional[ScanAction] = None,
     abuse_action: Optional[ScanAction] = None,
     pii_action: Optional[PIIAction] = None,
+    compression: Optional[CompressionAction] = None,
+    compression_rate: Optional[float] = None,
     sensitivity: Optional[Sensitivity] = None,
     chunk: Optional[bool] = None,
 ) -> Dict[str, str]:
@@ -195,6 +216,10 @@ def _build_scan_headers(
         headers["X-LockLLM-Abuse-Action"] = abuse_action
     if pii_action is not None:
         headers["X-LockLLM-PII-Action"] = pii_action
+    if compression is not None:
+        headers["X-LockLLM-Compression"] = compression
+    if compression_rate is not None:
+        headers["X-LockLLM-Compression-Rate"] = str(compression_rate)
     if sensitivity is not None:
         headers["X-LockLLM-Sensitivity"] = sensitivity
     if chunk is not None:
@@ -294,6 +319,18 @@ def _parse_scan_response(data: dict, request_id: str) -> ScanResponse:
             redacted_input=pr.get("redacted_input"),
         )
 
+    # Parse compression result (optional)
+    compression_result: Optional[CompressionResult] = None
+    if "compression_result" in data and data["compression_result"]:
+        cr = data["compression_result"]
+        compression_result = CompressionResult(
+            method=cr.get("method", ""),
+            compressed_input=cr.get("compressed_input", ""),
+            original_length=cr.get("original_length", 0),
+            compressed_length=cr.get("compressed_length", 0),
+            compression_ratio=cr.get("compression_ratio", 1.0),
+        )
+
     return ScanResponse(
         safe=data["safe"],
         label=data["label"],
@@ -309,4 +346,5 @@ def _parse_scan_response(data: dict, request_id: str) -> ScanResponse:
         abuse_warnings=abuse_warnings,
         routing=routing,
         pii_result=pii_result,
+        compression_result=compression_result,
     )

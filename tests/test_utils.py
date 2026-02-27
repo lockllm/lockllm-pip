@@ -282,6 +282,21 @@ class TestBuildLockLLMHeaders:
 
         assert headers["X-LockLLM-PII-Action"] == "strip"
 
+    def test_compression_header(self):
+        """Test compression produces X-LockLLM-Compression header."""
+        options = ProxyOptions(compression="toon")
+        headers = build_lockllm_headers(options)
+
+        assert headers["X-LockLLM-Compression"] == "toon"
+
+    def test_compression_compact_with_rate(self):
+        """Test compression=compact with compression_rate."""
+        options = ProxyOptions(compression="compact", compression_rate=0.4)
+        headers = build_lockllm_headers(options)
+
+        assert headers["X-LockLLM-Compression"] == "compact"
+        assert headers["X-LockLLM-Compression-Rate"] == "0.4"
+
 
 class TestDecodeDetailField:
     """Tests for decode_detail_field."""
@@ -681,3 +696,38 @@ class TestParseProxyMetadata:
         assert metadata.pii_detected.entity_types == ""
         assert metadata.pii_detected.entity_count == 0
         assert metadata.pii_detected.action == ""
+
+    def test_compression_metadata(self):
+        """Test parsing compression metadata headers."""
+        headers = {
+            "x-request-id": "req_compress",
+            "x-lockllm-scanned": "true",
+            "x-lockllm-safe": "true",
+            "x-lockllm-provider": "openai",
+            "x-lockllm-compression-method": "toon",
+            "x-lockllm-compression-applied": "true",
+            "x-lockllm-compression-ratio": "0.65",
+        }
+        metadata = parse_proxy_metadata(headers)
+
+        assert metadata.compression is not None
+        assert metadata.compression.method == "toon"
+        assert metadata.compression.applied is True
+        assert metadata.compression.ratio == 0.65
+
+    def test_compression_metadata_not_applied(self):
+        """Test parsing compression metadata when not applied."""
+        headers = {
+            "x-request-id": "req_compress2",
+            "x-lockllm-scanned": "true",
+            "x-lockllm-safe": "true",
+            "x-lockllm-provider": "openai",
+            "x-lockllm-compression-method": "toon",
+            "x-lockllm-compression-applied": "false",
+        }
+        metadata = parse_proxy_metadata(headers)
+
+        assert metadata.compression is not None
+        assert metadata.compression.method == "toon"
+        assert metadata.compression.applied is False
+        assert metadata.compression.ratio is None

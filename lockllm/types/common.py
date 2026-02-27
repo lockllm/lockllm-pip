@@ -59,7 +59,7 @@ class ProxyOptions:
             - None: Abuse detection disabled (default)
             - "block": Block the request
             - "allow_with_warning": Allow with warning
-        route_action: Intelligent routing mode
+        route_action: Smart routing mode
             - "disabled": No routing, use original model (default)
             - "auto": AI-powered automatic routing
             - "custom": Use user-defined routing rules
@@ -83,6 +83,13 @@ class ProxyOptions:
             - "strip": Strip PII entities from the prompt
             - "block": Block the request
             - "allow_with_warning": Allow with PII info in response
+        compression: Prompt compression method (opt-in)
+            - None: Disabled (default)
+            - "toon": JSON-to-compact notation (free)
+            - "compact": ML-based compression ($0.0001/use)
+            - "combined": TOON first then Compact ($0.0001/use, maximum compression)
+        compression_rate: Compression rate for compact/combined methods (0.3-0.7)
+            - None: Use server default (0.5)
     """
 
     scan_mode: Optional[str] = None
@@ -95,6 +102,8 @@ class ProxyOptions:
     cache_ttl: Optional[int] = None
     chunk: Optional[bool] = None
     pii_action: Optional[str] = None
+    compression: Optional[str] = None
+    compression_rate: Optional[float] = None
 
 
 @dataclass
@@ -160,6 +169,21 @@ class ProxyPIIDetected:
 
 
 @dataclass
+class ProxyCompressionMetadata:
+    """Compression metadata from proxy response headers.
+
+    Attributes:
+        method: Compression method used ("toon", "compact", or "combined")
+        applied: Whether compression was actually applied
+        ratio: Compression ratio (compressed/original, only when applied)
+    """
+
+    method: str
+    applied: bool
+    ratio: Optional[float] = None
+
+
+@dataclass
 class ProxyRoutingMetadata:
     """Routing metadata from proxy response headers.
 
@@ -216,6 +240,7 @@ class ProxyResponseMetadata:
         policy_warnings: Policy violation details (if detected)
         abuse_detected: Abuse detection details (if detected)
         pii_detected: PII detection details (if PII detection enabled)
+        compression: Compression metadata (if compression was enabled)
         routing: Routing metadata (if routing was enabled)
         credits_reserved: Credits reserved for request
         routing_fee_reserved: Routing fee reserved
@@ -250,6 +275,7 @@ class ProxyResponseMetadata:
     policy_warnings: Optional[ProxyPolicyWarnings] = None
     abuse_detected: Optional[ProxyAbuseDetected] = None
     pii_detected: Optional[ProxyPIIDetected] = None
+    compression: Optional[ProxyCompressionMetadata] = None
     routing: Optional[ProxyRoutingMetadata] = None
     credits_reserved: Optional[float] = None
     routing_fee_reserved: Optional[float] = None

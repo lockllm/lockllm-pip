@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional, cast
 
 from .types.common import (
     ProxyAbuseDetected,
+    ProxyCompressionMetadata,
     ProxyOptions,
     ProxyPIIDetected,
     ProxyPolicyWarnings,
@@ -169,6 +170,10 @@ def build_lockllm_headers(options: ProxyOptions) -> Dict[str, str]:
         headers["X-LockLLM-Chunk"] = str(options.chunk).lower()
     if options.pii_action is not None:
         headers["X-LockLLM-PII-Action"] = options.pii_action
+    if options.compression is not None:
+        headers["X-LockLLM-Compression"] = options.compression
+    if options.compression_rate is not None:
+        headers["X-LockLLM-Compression-Rate"] = str(options.compression_rate)
 
     return headers
 
@@ -313,6 +318,17 @@ def parse_proxy_metadata(headers: Dict[str, str]) -> ProxyResponseMetadata:
             entity_types=pii_types or "",
             entity_count=int(pii_count) if pii_count else 0,
             action=pii_action or "",
+        )
+
+    # Parse compression metadata
+    compression_method = get_header("x-lockllm-compression-method")
+    if compression_method:
+        compression_applied = get_header("x-lockllm-compression-applied") == "true"
+        compression_ratio_str = get_header("x-lockllm-compression-ratio")
+        metadata.compression = ProxyCompressionMetadata(
+            method=compression_method,
+            applied=compression_applied,
+            ratio=float(compression_ratio_str) if compression_ratio_str else None,
         )
 
     # Parse routing metadata

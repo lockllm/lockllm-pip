@@ -307,6 +307,19 @@ def parse_error(
             request_id=request_id,
         )
 
+    # Handle flat error format: {"error": "string_code", "message": "..."}
+    if isinstance(error, str):
+        message = response.get("message", error)
+        error_type = error
+        code = error
+        request_id = response.get("request_id", request_id)
+        return LockLLMError(
+            message=message,
+            error_type=error_type,
+            code=code,
+            request_id=request_id,
+        )
+
     message = error.get("message", "An error occurred")
     error_type = error.get("type", "unknown_error")
     code = error.get("code")
