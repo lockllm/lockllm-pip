@@ -9,7 +9,7 @@
 
 **Enterprise-grade AI Security for LLM Applications**
 
-*Keep control of your AI. Detect prompt injection, jailbreaks, and adversarial attacks in real-time across 17+ providers with zero code changes.*
+*Keep control of your AI. Detect prompt injection, jailbreaks, and adversarial attacks in real-time across all AI models with zero code changes.*
 
 [Quick Start](#quick-start) · [Documentation](https://www.lockllm.com/docs) · [Examples](#examples) · [Benchmarks](https://www.lockllm.com) · [API Reference](#api-reference)
 
@@ -25,7 +25,7 @@ LockLLM is a state-of-the-art AI security ecosystem that detects prompt injectio
 
 - **Real-Time Security Scanning** - Analyze every LLM request before execution with minimal latency (<250ms)
 - **Advanced ML Detection** - Models trained on real-world attack patterns for prompt injection and jailbreaks. [View benchmarks](https://www.lockllm.com)
-- **17+ Provider Support** - Universal coverage across OpenAI, Anthropic, Azure, Bedrock, Gemini, and more
+- **Universal AI Support** - Coverage across OpenAI, Anthropic, Azure, Bedrock, Gemini, and more
 - **Drop-in Integration** - Replace existing SDKs with zero code changes - just change one line
 - **Dual API** - Both synchronous and asynchronous support for maximum flexibility
 - **Completely Free** - BYOK (Bring Your Own Key) model with free unlimited scanning
@@ -73,7 +73,7 @@ LockLLM provides production-ready AI security that integrates seamlessly into yo
 | **Evasion & Obfuscation Detection** | Catch sophisticated obfuscation including Unicode abuse, zero-width characters, and encoding-based attacks |
 | **Multi-Layer Context Analysis** | Analyze prompts across multiple context windows to detect attacks spanning conversation turns |
 | **Token-Level Threat Scoring** | Granular threat assessment identifying which specific parts of input contain malicious patterns |
-| **17+ Provider Support** | OpenAI, Anthropic, Gemini, Azure, Bedrock, Groq, DeepSeek, and more |
+| **Universal AI Support** | OpenAI, Anthropic, Gemini, Azure, Bedrock, Groq, DeepSeek, and more |
 | **Drop-in Integration** | Replace `OpenAI()` with `create_openai()` - no other changes needed |
 | **Full Type Hints** | Complete type safety with mypy support and IDE autocompletion |
 | **Dual API** | Both synchronous and asynchronous support for maximum flexibility |
@@ -536,7 +536,7 @@ Compare detection accuracy and performance metrics at [lockllm.com/benchmarks](h
 | **Real-Time Protection** | ✅ <250ms latency | ✅ Built-in | ✅ Yes | ❌ Too slow |
 | **Setup Time** | 5 minutes | Included | Days to weeks | N/A |
 | **Maintenance** | None | None | Constant updates | Constant |
-| **Multi-Provider Support** | ✅ 17+ providers | Single provider | Custom per provider | N/A |
+| **Multi-Provider Support** | ✅ All major providers | Single provider | Custom per provider | N/A |
 | **False Positives** | Low (~2-5%) | N/A | High (15-30%) | N/A |
 | **Cost** | Free (BYOK) | Free | Dev time + infrastructure | $$$ |
 | **Attack Coverage** | Comprehensive | Content policy only | Pattern-based only | Manual |
@@ -548,7 +548,7 @@ Compare detection accuracy and performance metrics at [lockllm.com/benchmarks](h
 
 ## Supported Providers
 
-LockLLM supports 17+ AI providers with three flexible integration methods:
+LockLLM supports all AI models with three flexible integration methods:
 
 ### Provider List
 
@@ -607,7 +607,7 @@ LockLLM uses a secure BYOK (Bring Your Own Key) model - you maintain control of 
 
 - Use this single key in your SDK configuration
 - Authenticates requests to the LockLLM security gateway
-- Works across all 17+ providers with one key
+- Works across all providers with one key
 - **This is the only key that goes in your code**
 
 ### Request Flow
@@ -786,7 +786,7 @@ openai = create_openai(
 )
 ```
 
-All 17+ providers support `proxy_options`:
+All providers support `proxy_options`:
 
 ```python
 create_openai(api_key, proxy_options=...) -> OpenAI
